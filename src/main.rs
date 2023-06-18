@@ -1,10 +1,10 @@
 use crate::{cli::Args, nix::FlakeLock};
 use clap::Parser;
 use cli::Command;
-use time::format_description;
 use std::fs;
+use time::format_description;
 
-use comfy_table::{Table, presets::UTF8_BORDERS_ONLY};
+use comfy_table::{presets::UTF8_BORDERS_ONLY, Table};
 
 mod cli;
 mod nix;
@@ -26,7 +26,8 @@ fn main() {
             table.load_preset(UTF8_BORDERS_ONLY);
             table.set_header(vec!["input", "last_modified"]);
 
-            let date_format = format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap();
+            let date_format =
+                format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap();
 
             for n in &nodes {
                 let last_modified = match n.node.locked.as_ref().unwrap() {
@@ -49,7 +50,10 @@ fn main() {
                     } => last_modified,
                 };
 
-                table.add_row(vec![n.name.clone(), last_modified.format(&date_format).unwrap()]);
+                table.add_row(vec![
+                    n.name.clone(),
+                    last_modified.format(&date_format).unwrap(),
+                ]);
             }
 
             println!("{table}");
