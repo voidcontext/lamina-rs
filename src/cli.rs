@@ -8,5 +8,5 @@ pub struct Args {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    Info,
+    LastModified,
 }
