@@ -13,7 +13,7 @@ A CLI tool to interact with nix flakes
 - [ ] fully sync the input with another flake including modifying `flake.nix`
 
 
-### Usage
+#### Usage
 
 ```
 Usage: lamina <COMMAND>
