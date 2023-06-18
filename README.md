@@ -1,3 +1,3 @@
-# flake-sync
+# lamina-rs
 
-A small tool to keep flake inputs in sync
+A CLI tool to interact with nix flakes
