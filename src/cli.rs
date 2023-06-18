@@ -8,5 +8,6 @@ pub struct Args {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
+    /// Prints the last modified date/time of the flake inputs
     LastModified,
 }
