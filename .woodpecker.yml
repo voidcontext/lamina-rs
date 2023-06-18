@@ -1,0 +1,11 @@
+pipeline:
+  check:
+    image: nixos/nix
+    commands:
+      - echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
+      - echo "trusted-substituters = file:///var/lib/woodpecker-agent/nix-store" >> /etc/nix/nix.conf
+      - echo "extra-trusted-public-keys = $(cat /var/lib/woodpecker-agent/nix-store/cache-pub-key.pem)" >> /etc/nix/nix.conf
+      - echo "extra-substituters = file:///var/lib/woodpecker-agent/nix-store" >> /etc/nix/nix.conf
+      - nix flake check 2>&1 | nix run "git+https://git.vdx.hu/voidcontext/nix-cache-copy?ref=refs/tags/v0.2.0" -- -t file:///var/lib/woodpecker-agent/nix-store -k /var/lib/woodpecker-agent/nix-store/cache-priv-key.pem
+    volumes:
+      - /var/lib/woodpecker-agent/nix-store:/var/lib/woodpecker-agent/nix-store
