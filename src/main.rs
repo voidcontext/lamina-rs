@@ -9,5 +9,5 @@ fn main() {
     let flake_lock: FlakeLock =
         serde_json::from_str(&flake_lock_json).expect("Couldn't deserialize flake.lock");
 
-    println!("{:?}", flake_lock);
+    println!("{flake_lock:?}");
 }
