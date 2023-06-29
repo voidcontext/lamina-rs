@@ -23,17 +23,20 @@ pub fn last_modified() {
         let last_modified = match n.node.locked.as_ref().unwrap() {
             nix::Locked::Git {
                 rev: _,
+                r#ref: _,
                 url: _,
                 last_modified,
             }
             | nix::Locked::Github {
                 rev: _,
+                r#ref: _,
                 owner: _,
                 repo: _,
                 last_modified,
             }
             | nix::Locked::GitLab {
                 rev: _,
+                r#ref: _,
                 owner: _,
                 repo: _,
                 last_modified,

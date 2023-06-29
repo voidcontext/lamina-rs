@@ -10,6 +10,9 @@ A CLI tool to interact with nix flakes
   - [ ] using github api
   - [ ] using gitlab api (?)
 - [ ] sync rev of a flake input from another flake, when branch, etc is matching
+  - [x] git
+  - [ ] github
+  - [ ] gitlab
 - [ ] fully sync the input with another flake including modifying `flake.nix`
 
 
