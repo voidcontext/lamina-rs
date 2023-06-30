@@ -8,12 +8,12 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct FlakeLock {
-    pub nodes: HashMap<String, Node>,
-    pub root: String,
+    nodes: HashMap<String, Node>,
+    root: String,
 }
 
 impl FlakeLock {
-    pub fn top_level_nodes(&self) -> Vec<NodeWithName> {
+    pub fn input_nodes(&self) -> HashMap<String, Node> {
         let root_node = self.nodes.get(&self.root).expect("Cannot find root node");
 
         root_node
@@ -22,22 +22,23 @@ impl FlakeLock {
             .expect("There aren't any inputs")
             .iter()
             .map(|(input_name, node_name)| match node_name {
-                InputValue::Scalar(node_name) => NodeWithName {
-                    name: input_name.clone(),
-                    node: self.nodes.get(node_name).unwrap().clone(),
-                },
+                InputValue::Scalar(node_name) => (
+                    input_name.clone(),
+                    self.nodes.get(node_name).unwrap().clone(),
+                ),
                 InputValue::List(_) => panic!("I don't know what to do"),
             })
             .collect()
     }
 
     pub fn locked_rev_of(&self, input: &str) -> Option<String> {
-        let locked = self.nodes.get(input)?.locked.as_ref()?;
+        let input_nodes = self.input_nodes();
+        let locked = input_nodes.get(input)?.locked.as_ref()?;
         Some(locked.rev().clone())
     }
 
     pub fn original_of(&self, input: &str) -> Option<Original> {
-        self.nodes.get(input)?.original.clone()
+        self.input_nodes().get(input)?.original.clone()
     }
 }
 
@@ -321,7 +322,7 @@ mod tests {
         Original,
     };
 
-    use super::{FlakeLock, NodeWithName};
+    use super::FlakeLock;
 
     #[test]
     fn can_deserialize_flake_lock() {
@@ -332,18 +333,20 @@ mod tests {
 
     #[test]
     fn top_level_nodes_should_return_root_nodes() {
-        let top_level_nodes = flake_lock(None).top_level_nodes();
+        let top_level_nodes = flake_lock(None).input_nodes();
         assert_eq!(
             top_level_nodes,
-            vec![NodeWithName {
-                name: String::from("nix-rust-utils"),
-                node: git_node(
+            [(
+                String::from("nix-rust-utils"),
+                git_node(
                     "nixpkgs",
                     "3892194d7b3293de8b30f1d19e2af45ba41ba8fd",
                     "https://git.vdx.hu/voidcontext/nix-rust-utils.git",
                     None,
                 )
-            }]
+            )]
+            .into_iter()
+            .collect()
         );
     }
 

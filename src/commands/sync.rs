@@ -18,8 +18,8 @@ pub fn sync(dst_input: &str, src_path: PathBuf, src_input: &str) -> anyhow::Resu
             anyhow::Error::msg(format!("{dst_input} doesn't have a revision in source"))
         })?;
 
-    println!("destination rev of {dst_input} is: {destination_rev}");
-    println!("source rev of {src_input} is: {source_rev}");
+    log::debug!("destination rev of {dst_input} is: {destination_rev}");
+    log::debug!("source rev of {src_input} is: {source_rev}");
 
     let input_override = input_override_arg(
         dst_input,
@@ -28,15 +28,18 @@ pub fn sync(dst_input: &str, src_path: PathBuf, src_input: &str) -> anyhow::Resu
         &source_flake_lock,
     )?;
 
-    Command::new("nix")
-        .args([
-            "flake",
-            "lock",
-            "--override-input",
-            dst_input,
-            &input_override,
-        ])
-        .status()?;
+    let mut cmd = Command::new("nix");
+    cmd.args([
+        "flake",
+        "lock",
+        "--override-input",
+        dst_input,
+        &input_override,
+    ]);
+
+    log::debug!("running command: {:?}", cmd);
+
+    cmd.status()?;
 
     Ok(())
 }
@@ -52,12 +55,16 @@ fn input_override_arg(
         .original_of(dst_input)
         .as_ref()
         .zip(maybe_src_original.as_ref())
-        .map(|(dst, src)| (dst == src, src));
+        .map(|(dst, src)| {
+            log::debug!("source original: {:?}", src);
+            log::debug!("destination original: {:?}", dst);
+            (dst == src, src)
+        });
 
     match same_original_definition {
         Some((true, src_original)) => {
-            let locked = src
-                .nodes
+            let src_inputs = src.input_nodes();
+            let locked = src_inputs
                 .get(src_input)
                 .ok_or_else(|| anyhow::Error::msg("Input is missing"))?
                 .locked
@@ -65,10 +72,7 @@ fn input_override_arg(
                 .ok_or_else(|| anyhow::Error::msg("Locked block is missing from source"))?;
 
             match src_original {
-                Original::Indirect { id, r#ref } => {
-                    let ref_str = r#ref.as_ref().map_or_else(String::new, |r| format!("/{r}"));
-                    Ok(format!("{id}{ref_str}/{}", locked.rev()))
-                }
+                Original::Indirect { id, r#ref: _ } => Ok(format!("{id}/{}", locked.rev())),
                 _ => match locked {
                     crate::nix::Locked::Git {
                         rev,
@@ -263,7 +267,7 @@ mod tests {
             }),
             original: Some(Original::indirect("nixpkgs", Some("release-23.05"))),
         },
-        "nixpkgs/release-23.05/f542386b0646cf39b9475a200979adabd07d98b2"
+        "nixpkgs/f542386b0646cf39b9475a200979adabd07d98b2"
     )]
     fn input_override_arg_returns_correct_argument(
         #[case] original1: Original,

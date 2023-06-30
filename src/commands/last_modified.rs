@@ -9,8 +9,9 @@ pub fn last_modified() {
     let flake_lock: FlakeLock =
         serde_json::from_str(&flake_lock_json).expect("Couldn't deserialize flake.lock");
 
-    let mut nodes = flake_lock.top_level_nodes();
-    nodes.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
+    let nodes = flake_lock.input_nodes();
+    let mut names: Vec<String> = nodes.keys().cloned().collect();
+    names.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
     let mut table = Table::new();
     table.load_preset(UTF8_BORDERS_ONLY);
@@ -19,8 +20,8 @@ pub fn last_modified() {
     let date_format =
         format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap();
 
-    for n in &nodes {
-        let last_modified = match n.node.locked.as_ref().unwrap() {
+    for name in names {
+        let last_modified = match nodes.get(&name).unwrap().locked.as_ref().unwrap() {
             nix::Locked::Git {
                 rev: _,
                 r#ref: _,
@@ -44,7 +45,7 @@ pub fn last_modified() {
         };
 
         table.add_row(vec![
-            n.name.clone(),
+            name.clone(),
             last_modified.format(&date_format).unwrap(),
         ]);
     }

@@ -12,6 +12,8 @@ clap = {version = "4.3.4", features = ["derive"]}
 time = {version = "0.3.22", features = ["serde", "parsing", "serde-well-known", "formatting"]}
 comfy-table = "7.0.1"
 anyhow = "1.0.71"
+log = "0.4.19"
+simple_logger = "4.2.0"   
 
 [dev-dependencies]
 rstest = "0.17.0"
