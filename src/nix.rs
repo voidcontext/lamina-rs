@@ -149,6 +149,13 @@ impl Original {
             r#ref: r#ref.map(String::from),
         }
     }
+
+    pub fn indirect(id: &str, r#ref: Option<&str>) -> Self {
+        Original::Indirect {
+            id: String::from(id),
+            r#ref: r#ref.map(String::from),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Clone)]

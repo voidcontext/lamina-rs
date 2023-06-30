@@ -2,7 +2,7 @@ use std::{env::current_dir, path::PathBuf, process::Command};
 
 use anyhow::Result;
 
-use crate::nix::FlakeLock;
+use crate::nix::{FlakeLock, Original};
 
 pub fn sync(dst_input: &str, src_path: PathBuf, src_input: &str) -> anyhow::Result<()> {
     let source_flake_lock = FlakeLock::try_from(src_path)?;
@@ -47,14 +47,15 @@ fn input_override_arg(
     dst: &FlakeLock,
     src: &FlakeLock,
 ) -> Result<String> {
+    let maybe_src_original = src.original_of(src_input);
     let same_original_definition = dst
         .original_of(dst_input)
         .as_ref()
-        .zip(src.original_of(src_input).as_ref())
-        .map(|(dst, src)| dst == src);
+        .zip(maybe_src_original.as_ref())
+        .map(|(dst, src)| (dst == src, src));
 
     match same_original_definition {
-        Some(true) => {
+        Some((true, src_original)) => {
             let locked = src
                 .nodes
                 .get(src_input)
@@ -63,36 +64,42 @@ fn input_override_arg(
                 .as_ref()
                 .ok_or_else(|| anyhow::Error::msg("Locked block is missing from source"))?;
 
-            match locked {
-                crate::nix::Locked::Git {
-                    rev,
-                    r#ref,
-                    url,
-                    last_modified: _,
-                } => {
-                    let mut query_str = format!("rev={rev}");
-                    if let Some(r#ref) = r#ref {
-                        query_str = format!("ref={ref}&{query_str}");
-                    }
-                    Ok(format!("git+{url}?{query_str}"))
+            match src_original {
+                Original::Indirect { id, r#ref } => {
+                    let ref_str = r#ref.as_ref().map_or_else(String::new, |r| format!("/{r}"));
+                    Ok(format!("{id}{ref_str}/{}", locked.rev()))
                 }
-                crate::nix::Locked::Github {
-                    rev: _,
-                    r#ref: _,
-                    owner: _,
-                    repo: _,
-                    last_modified: _,
-                } => todo!(),
-                crate::nix::Locked::GitLab {
-                    rev: _,
-                    r#ref: _,
-                    owner: _,
-                    repo: _,
-                    last_modified: _,
-                } => todo!(),
+                _ => match locked {
+                    crate::nix::Locked::Git {
+                        rev,
+                        r#ref,
+                        url,
+                        last_modified: _,
+                    } => {
+                        let mut query_str = format!("rev={rev}");
+                        if let Some(r#ref) = r#ref {
+                            query_str = format!("ref={ref}&{query_str}");
+                        }
+                        Ok(format!("git+{url}?{query_str}"))
+                    }
+                    crate::nix::Locked::Github {
+                        rev,
+                        r#ref: _,
+                        owner,
+                        repo,
+                        last_modified: _,
+                    } => Ok(format!("github:{owner}/{repo}/{rev}")),
+                    crate::nix::Locked::GitLab {
+                        rev: _,
+                        r#ref: _,
+                        owner: _,
+                        repo: _,
+                        last_modified: _,
+                    } => todo!(),
+                },
             }
         }
-        Some(false) => Err(anyhow::Error::msg(
+        Some((false, _)) => Err(anyhow::Error::msg(
             "Cannot override inputs when the original declaration is different",
         )),
         None => Err(anyhow::Error::msg("Origin is missing from flake.lock")),
@@ -206,6 +213,57 @@ mod tests {
             original: Some(Original::git_with_rev("https://example.com/user/repo.git", "f542386b0646cf39b9475a200979adabd07d98b2")),
         },
         "git+https://example.com/user/repo.git?rev=f542386b0646cf39b9475a200979adabd07d98b2"
+    )]
+    #[case(
+        Original::github("owner", "repo", None),
+        Node {
+            flake: None,
+            inputs: Some(inputs("nixpkgs")),
+            locked: Some(Locked::Github {
+                rev: String::from("f542386b0646cf39b9475a200979adabd07d98b2"),
+                r#ref: None,
+                owner: String::from("owner"),
+                repo: String::from("repo"),
+                #[allow(clippy::unreadable_literal)]
+                last_modified: OffsetDateTime::from_unix_timestamp(1685572332).unwrap(),
+            }),
+            original: Some(Original::github("owner", "repo", None)),
+        },
+        "github:owner/repo/f542386b0646cf39b9475a200979adabd07d98b2"
+    )]
+    #[case(
+        Original::github("owner", "repo", Some("ref")),
+        Node {
+            flake: None,
+            inputs: Some(inputs("nixpkgs")),
+            locked: Some(Locked::Github {
+                rev: String::from("f542386b0646cf39b9475a200979adabd07d98b2"),
+                r#ref: Some(String::from("ref")),
+                owner: String::from("owner"),
+                repo: String::from("repo"),
+                #[allow(clippy::unreadable_literal)]
+                last_modified: OffsetDateTime::from_unix_timestamp(1685572332).unwrap(),
+            }),
+            original: Some(Original::github("owner", "repo", Some("ref"))),
+        },
+        "github:owner/repo/f542386b0646cf39b9475a200979adabd07d98b2"
+    )]
+    #[case(
+        Original::indirect("nixpkgs", Some("release-23.05")),
+        Node {
+            flake: None,
+            inputs: Some(inputs("nixpkgs")),
+            locked: Some(Locked::Github {
+                rev: String::from("f542386b0646cf39b9475a200979adabd07d98b2"),
+                r#ref: None,
+                owner: String::from("NixOS"),
+                repo: String::from("nixpkgs"),
+                #[allow(clippy::unreadable_literal)]
+                last_modified: OffsetDateTime::from_unix_timestamp(1685572332).unwrap(),
+            }),
+            original: Some(Original::indirect("nixpkgs", Some("release-23.05"))),
+        },
+        "nixpkgs/release-23.05/f542386b0646cf39b9475a200979adabd07d98b2"
     )]
     fn input_override_arg_returns_correct_argument(
         #[case] original1: Original,
