@@ -60,12 +60,6 @@ impl TryFrom<PathBuf> for FlakeLock {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct NodeWithName {
-    pub name: String,
-    pub node: Node,
-}
-
 #[derive(Debug, Deserialize, PartialEq, Clone)]
 pub struct Node {
     pub flake: Option<bool>,
@@ -107,54 +101,6 @@ pub enum Original {
     },
     #[serde(rename_all = "camelCase")]
     Indirect { id: String, r#ref: Option<String> },
-}
-
-#[cfg(test)]
-impl Original {
-    pub fn git_url_only(url: &str) -> Self {
-        Original::Git {
-            url: String::from(url),
-            rev: None,
-            r#ref: None,
-        }
-    }
-    pub fn git_with_ref(url: &str, r#ref: &str) -> Self {
-        Original::Git {
-            url: String::from(url),
-            rev: None,
-            r#ref: Some(String::from(r#ref)),
-        }
-    }
-    pub fn git_with_rev(url: &str, rev: &str) -> Self {
-        Original::Git {
-            url: String::from(url),
-            rev: Some(String::from(rev)),
-            r#ref: None,
-        }
-    }
-    #[allow(clippy::similar_names)]
-    pub fn git_with_ref_and_rev(url: &str, rev: &str, r#ref: &str) -> Self {
-        Original::Git {
-            url: String::from(url),
-            rev: Some(String::from(rev)),
-            r#ref: Some(String::from(r#ref)),
-        }
-    }
-    pub fn github(owner: &str, repo: &str, r#ref: Option<&str>) -> Self {
-        Original::Github {
-            owner: String::from(owner),
-            repo: String::from(repo),
-            rev: None,
-            r#ref: r#ref.map(String::from),
-        }
-    }
-
-    pub fn indirect(id: &str, r#ref: Option<&str>) -> Self {
-        Original::Indirect {
-            id: String::from(id),
-            r#ref: r#ref.map(String::from),
-        }
-    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Clone)]
@@ -212,6 +158,56 @@ impl Locked {
                 repo: _,
                 last_modified: _,
             } => rev,
+        }
+    }
+}
+
+// Tests
+
+#[cfg(test)]
+impl Original {
+    pub fn git_url_only(url: &str) -> Self {
+        Original::Git {
+            url: String::from(url),
+            rev: None,
+            r#ref: None,
+        }
+    }
+    pub fn git_with_ref(url: &str, r#ref: &str) -> Self {
+        Original::Git {
+            url: String::from(url),
+            rev: None,
+            r#ref: Some(String::from(r#ref)),
+        }
+    }
+    pub fn git_with_rev(url: &str, rev: &str) -> Self {
+        Original::Git {
+            url: String::from(url),
+            rev: Some(String::from(rev)),
+            r#ref: None,
+        }
+    }
+    #[allow(clippy::similar_names)]
+    pub fn git_with_ref_and_rev(url: &str, rev: &str, r#ref: &str) -> Self {
+        Original::Git {
+            url: String::from(url),
+            rev: Some(String::from(rev)),
+            r#ref: Some(String::from(r#ref)),
+        }
+    }
+    pub fn github(owner: &str, repo: &str, r#ref: Option<&str>) -> Self {
+        Original::Github {
+            owner: String::from(owner),
+            repo: String::from(repo),
+            rev: None,
+            r#ref: r#ref.map(String::from),
+        }
+    }
+
+    pub fn indirect(id: &str, r#ref: Option<&str>) -> Self {
+        Original::Indirect {
+            id: String::from(id),
+            r#ref: r#ref.map(String::from),
         }
     }
 }
