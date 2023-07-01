@@ -9,13 +9,13 @@ pub fn sync(dst_input: &str, src_path: PathBuf, src_input: &str) -> anyhow::Resu
     let destination_flake_lock = FlakeLock::try_from(current_dir()?)?;
 
     let source_rev = source_flake_lock.locked_rev_of(src_input).ok_or_else(|| {
-        anyhow::Error::msg(format!("{src_input} doesn't have a revision in source"))
+        anyhow::Error::msg(format!("{src_input} doesn't have a revision at source"))
     })?;
 
     let destination_rev = destination_flake_lock
         .locked_rev_of(dst_input)
         .ok_or_else(|| {
-            anyhow::Error::msg(format!("{dst_input} doesn't have a revision in source"))
+            anyhow::Error::msg(format!("{dst_input} doesn't have a revision at destination"))
         })?;
 
     log::debug!("destination rev of {dst_input} is: {destination_rev}");
