@@ -1,0 +1,183 @@
+{
+  "nodes": {
+    "crane": {
+      "inputs": {
+        "flake-compat": "flake-compat",
+        "flake-utils": [
+          "nix-rust-utils-git",
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nix-rust-utils-git",
+          "nixpkgs"
+        ],
+        "rust-overlay": [
+          "nix-rust-utils-git",
+          "rust-overlay"
+        ]
+      },
+      "locked": {
+        "lastModified": 1670900067,
+        "narHash": "sha256-VXVa+KBfukhmWizaiGiHRVX/fuk66P8dgSFfkVN4/MY=",
+        "owner": "ipetkov",
+        "repo": "crane",
+        "rev": "59b31b41a589c0a65e4a1f86b0e5eac68081468b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ipetkov",
+        "repo": "crane",
+        "type": "github"
+      }
+    },
+    "flake-compat": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1668681692,
+        "narHash": "sha256-Ht91NGdewz8IQLtWZ9LCeNXMSXHUss+9COoqu6JLmXU=",
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "rev": "009399224d5e398d03b22badca40a37ac85412a1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "type": "github"
+      }
+    },
+    "flake-utils": {
+      "locked": {
+        "lastModified": 1667395993,
+        "narHash": "sha256-nuEHfE/LcWyuSWnS8t12N1wc105Qtau+/OdUAjtQ0rA=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "5aed5285a952e0b949eb3ba02c12fa4fcfef535f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "nix-rust-utils-git": {
+      "inputs": {
+        "crane": "crane",
+        "flake-utils": "flake-utils",
+        "nixpkgs": "nixpkgs",
+        "rust-overlay": "rust-overlay"
+      },
+      "locked": {
+        "lastModified": 1677192685,
+        "narHash": "sha256-C5O44NVEK+v6v7ZiVk0RcOn6ZLTGaatDObeQV+flYTk=",
+        "ref": "refs/tags/v0.4.0",
+        "rev": "2e1449b499e5e8436c5c8a9b32217e090ad8963c",
+        "revCount": 52,
+        "type": "git",
+        "url": "https://github.com/voidcontext/nix-rust-utils.git"
+      },
+      "original": {
+        "ref": "refs/tags/v0.4.0",
+        "type": "git",
+        "url": "https://github.com/voidcontext/nix-rust-utils.git"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1671473896,
+        "narHash": "sha256-mdIxpGEfiEQdfdqvPO7JXln1885z+awbbUXONd+eGug=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "ba86945ee00a5c046f68451c1db279ea5e2bc797",
+        "type": "github"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "ref": "release-22.11",
+        "type": "indirect"
+      }
+    },
+    "nixpkgs-github": {
+      "locked": {
+        "lastModified": 1688492780,
+        "narHash": "sha256-b28rcaKxLkWplTCv+opFfha+97O8cf5D6xpZ0DoQqx0=",
+        "owner": "Nixos",
+        "repo": "nixpkgs",
+        "rev": "8b3ad2fe8e06c2189908b7164f2f0bf2126b83b1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Nixos",
+        "ref": "release-23.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs-indirect-ref": {
+      "locked": {
+        "lastModified": 1688492780,
+        "narHash": "sha256-b28rcaKxLkWplTCv+opFfha+97O8cf5D6xpZ0DoQqx0=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "8b3ad2fe8e06c2189908b7164f2f0bf2126b83b1",
+        "type": "github"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "ref": "release-23.05",
+        "type": "indirect"
+      }
+    },
+    "nixpkgs-indirect-rev": {
+      "locked": {
+        "lastModified": 1688492780,
+        "narHash": "sha256-b28rcaKxLkWplTCv+opFfha+97O8cf5D6xpZ0DoQqx0=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "8b3ad2fe8e06c2189908b7164f2f0bf2126b83b1",
+        "type": "github"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "rev": "8b3ad2fe8e06c2189908b7164f2f0bf2126b83b1",
+        "type": "indirect"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nix-rust-utils-git": "nix-rust-utils-git",
+        "nixpkgs-github": "nixpkgs-github",
+        "nixpkgs-indirect-ref": "nixpkgs-indirect-ref",
+        "nixpkgs-indirect-rev": "nixpkgs-indirect-rev"
+      }
+    },
+    "rust-overlay": {
+      "inputs": {
+        "flake-utils": [
+          "nix-rust-utils-git",
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nix-rust-utils-git",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1671416426,
+        "narHash": "sha256-kpSH1Jrxfk2qd0pRPJn1eQdIOseGv5JuE+YaOrqU9s4=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "fbaaff24f375ac25ec64268b0a0d63f91e474b7d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

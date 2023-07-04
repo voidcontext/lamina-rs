@@ -1,8 +1,10 @@
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{collections::HashMap, fs, path::Path};
 
 use time::OffsetDateTime;
 
 use serde::Deserialize;
+
+use nova::newtype;
 
 #[derive(Debug, Deserialize)]
 pub struct FlakeLock {
@@ -11,6 +13,7 @@ pub struct FlakeLock {
 }
 
 impl FlakeLock {
+    #[must_use]
     pub fn input_nodes(&self) -> HashMap<String, Node> {
         let root_node = self.nodes.get(&self.root).expect("Cannot find root node");
 
@@ -29,21 +32,25 @@ impl FlakeLock {
             .collect()
     }
 
-    pub fn locked_rev_of(&self, input: &str) -> Option<String> {
-        let input_nodes = self.input_nodes();
-        let locked = input_nodes.get(input)?.locked.as_ref()?;
-        Some(locked.rev().clone())
+    #[must_use]
+    pub fn locked_rev_of(&self, input: &str) -> Option<LockedRev> {
+        self.locked_of(input).map(|locked| locked.rev().clone())
     }
 
+    #[must_use]
+    pub fn locked_of(&self, input: &str) -> Option<Locked> {
+        self.input_nodes().get(input)?.locked.clone()
+    }
+    #[must_use]
     pub fn original_of(&self, input: &str) -> Option<Original> {
         self.input_nodes().get(input)?.original.clone()
     }
 }
 
-impl TryFrom<PathBuf> for FlakeLock {
+impl TryFrom<&Path> for FlakeLock {
     type Error = anyhow::Error;
 
-    fn try_from(value: PathBuf) -> Result<Self, Self::Error> {
+    fn try_from(value: &Path) -> Result<Self, Self::Error> {
         let path_str = value
             .to_str()
             .ok_or_else(|| anyhow::Error::msg("Couldn't construct path"))?;
@@ -75,6 +82,19 @@ pub enum InputValue {
     List(Vec<String>),
 }
 
+#[newtype(new, serde, borrow = "str")]
+pub type OriginalRev = String;
+
+#[newtype(new, serde, borrow = "str")]
+pub type OriginalRef = String;
+
+#[cfg(test)]
+impl From<&str> for OriginalRef {
+    fn from(value: &str) -> Self {
+        OriginalRef::from(String::from(value))
+    }
+}
+
 #[derive(Debug, Deserialize, PartialEq, Clone)]
 #[serde(tag = "type")]
 #[serde(rename_all = "lowercase")]
@@ -82,26 +102,129 @@ pub enum Original {
     #[serde(rename_all = "camelCase")]
     Git {
         url: String,
-        rev: Option<String>,
-        r#ref: Option<String>,
+        r#ref: Option<OriginalRef>,
+        rev: Option<OriginalRev>,
     },
     #[serde(rename_all = "camelCase")]
     Github {
         owner: String,
         repo: String,
-        rev: Option<String>,
-        r#ref: Option<String>,
+        r#ref: Option<OriginalRef>,
+        rev: Option<OriginalRev>,
     },
     #[serde(rename_all = "camelCase")]
     GitLab {
         owner: String,
         repo: String,
-        rev: Option<String>,
-        r#ref: Option<String>,
+        r#ref: Option<OriginalRef>,
+        rev: Option<OriginalRev>,
     },
     #[serde(rename_all = "camelCase")]
-    Indirect { id: String, r#ref: Option<String> },
+    Indirect {
+        id: String,
+        r#ref: Option<OriginalRef>,
+        rev: Option<OriginalRev>,
+    },
 }
+
+impl Original {
+    #[must_use]
+    pub fn base(&self) -> String {
+        match self {
+            Original::Git {
+                url,
+                rev: _,
+                r#ref: _ref,
+            } => url.clone(),
+            Original::Github {
+                owner,
+                repo,
+                rev: _,
+                r#ref: _,
+            } => format!("github:{owner}/{repo}"),
+            Original::GitLab {
+                owner,
+                repo,
+                rev: _,
+                r#ref: _,
+            } => format!("gitlab:{owner}/{repo}"),
+            Original::Indirect {
+                id,
+                r#ref: _,
+                rev: _,
+            } => id.clone(),
+        }
+    }
+
+    #[must_use]
+    pub fn r#ref(&self) -> Option<OriginalRef> {
+        match self {
+            Original::Git {
+                url: _,
+                rev: _,
+                r#ref,
+            }
+            | Original::Github {
+                owner: _,
+                repo: _,
+                rev: _,
+                r#ref,
+            }
+            | Original::GitLab {
+                owner: _,
+                repo: _,
+                rev: _,
+                r#ref,
+            }
+            | Original::Indirect {
+                id: _,
+                r#ref,
+                rev: _,
+            } => r#ref.clone(),
+        }
+    }
+
+    #[must_use]
+    pub fn rev(&self) -> Option<OriginalRev> {
+        match self {
+            Original::Git {
+                url: _,
+                rev,
+                r#ref: _,
+            }
+            | Original::Github {
+                owner: _,
+                repo: _,
+                rev,
+                r#ref: _,
+            }
+            | Original::GitLab {
+                owner: _,
+                repo: _,
+                rev,
+                r#ref: _,
+            }
+            | Original::Indirect {
+                id: _,
+                r#ref: _,
+                rev,
+            } => rev.clone(),
+        }
+    }
+}
+
+#[newtype(new, serde, borrow = "str")]
+pub type LockedRev = String;
+
+#[cfg(test)]
+impl From<&str> for LockedRev {
+    fn from(value: &str) -> Self {
+        LockedRev::from(String::from(value))
+    }
+}
+
+#[newtype(new, serde, borrow = "str")]
+pub type LockedRef = String;
 
 #[derive(Debug, Deserialize, PartialEq, Clone)]
 #[serde(tag = "type")]
@@ -109,16 +232,16 @@ pub enum Original {
 pub enum Locked {
     #[serde(rename_all = "camelCase")]
     Git {
-        rev: String,
-        r#ref: Option<String>,
+        rev: LockedRev,
+        r#ref: Option<LockedRef>,
         url: String,
         #[serde(with = "time::serde::timestamp")]
         last_modified: OffsetDateTime,
     },
     #[serde(rename_all = "camelCase")]
     Github {
-        rev: String,
-        r#ref: Option<String>,
+        rev: LockedRev,
+        r#ref: Option<LockedRef>,
         owner: String,
         repo: String,
         #[serde(with = "time::serde::timestamp")]
@@ -126,8 +249,8 @@ pub enum Locked {
     },
     #[serde(rename_all = "camelCase")]
     GitLab {
-        rev: String,
-        r#ref: Option<String>,
+        rev: LockedRev,
+        r#ref: Option<LockedRef>,
         owner: String,
         repo: String,
         #[serde(with = "time::serde::timestamp")]
@@ -136,7 +259,8 @@ pub enum Locked {
 }
 
 impl Locked {
-    pub fn rev(&self) -> &String {
+    #[must_use]
+    pub fn rev(&self) -> &LockedRev {
         match self {
             Locked::Git {
                 rev,
@@ -165,67 +289,48 @@ impl Locked {
 // Tests
 
 #[cfg(test)]
-impl Original {
-    pub fn git_url_only(url: &str) -> Self {
-        Original::Git {
-            url: String::from(url),
-            rev: None,
-            r#ref: None,
-        }
-    }
-    pub fn git_with_ref(url: &str, r#ref: &str) -> Self {
-        Original::Git {
-            url: String::from(url),
-            rev: None,
-            r#ref: Some(String::from(r#ref)),
-        }
-    }
-    pub fn git_with_rev(url: &str, rev: &str) -> Self {
-        Original::Git {
-            url: String::from(url),
-            rev: Some(String::from(rev)),
-            r#ref: None,
-        }
-    }
-    #[allow(clippy::similar_names)]
-    pub fn git_with_ref_and_rev(url: &str, rev: &str, r#ref: &str) -> Self {
-        Original::Git {
-            url: String::from(url),
-            rev: Some(String::from(rev)),
-            r#ref: Some(String::from(r#ref)),
-        }
-    }
-    pub fn github(owner: &str, repo: &str, r#ref: Option<&str>) -> Self {
-        Original::Github {
-            owner: String::from(owner),
-            repo: String::from(repo),
-            rev: None,
-            r#ref: r#ref.map(String::from),
-        }
-    }
-
-    pub fn indirect(id: &str, r#ref: Option<&str>) -> Self {
-        Original::Indirect {
-            id: String::from(id),
-            r#ref: r#ref.map(String::from),
-        }
-    }
-}
-
-#[cfg(test)]
 pub mod fixtures {
     use std::collections::HashMap;
 
     use time::OffsetDateTime;
 
-    use super::{FlakeLock, InputValue, Locked, Node, Original};
+    use super::{
+        FlakeLock, InputValue, Locked, LockedRef, LockedRev, Node, Original, OriginalRef,
+        OriginalRev,
+    };
 
+    pub mod original {
+        use crate::nix::{Original, OriginalRef, OriginalRev};
+
+        #[must_use]
+        pub fn github_with_ref(owner: &str, repo: &str, git_ref: &OriginalRef) -> Original {
+            github(owner, repo, None, Some(git_ref))
+        }
+
+        #[allow(clippy::similar_names)]
+        fn github(
+            owner: &str,
+            repo: &str,
+            git_rev: Option<&OriginalRev>,
+            git_ref: Option<&OriginalRef>,
+        ) -> Original {
+            Original::Github {
+                owner: String::from(owner),
+                repo: String::from(repo),
+                rev: git_rev.cloned(),
+                r#ref: git_ref.cloned(),
+            }
+        }
+    }
+
+    #[must_use]
     pub fn inputs(name: &str) -> HashMap<String, InputValue> {
         let mut inputs = HashMap::new();
         inputs.insert(String::from(name), InputValue::Scalar(String::from(name)));
         inputs
     }
 
+    #[must_use]
     pub fn root_node(input_name: &str) -> Node {
         Node {
             flake: None,
@@ -235,27 +340,145 @@ pub mod fixtures {
         }
     }
 
-    pub fn git_node(input_name: &str, rev: &str, url: &str, original: Option<Original>) -> Node {
+    #[must_use]
+    pub fn git_node_with_url_only(url: &str, locked_rev: &LockedRev) -> Node {
+        git_node(url, locked_rev, false, None)
+    }
+    #[must_use]
+    pub fn git_node_with_rev(url: &str, locked_rev: &LockedRev) -> Node {
+        git_node(url, locked_rev, true, None)
+    }
+    #[must_use]
+    pub fn git_node_with_ref(url: &str, locked_rev: &LockedRev, git_ref: &OriginalRef) -> Node {
+        git_node(url, locked_rev, false, Some(git_ref))
+    }
+
+    pub fn git_node(
+        url: &str,
+        locked_rev: &LockedRev,
+        original_rev: bool,
+        git_ref: Option<&OriginalRef>,
+    ) -> Node {
         Node {
             flake: None,
-            inputs: Some(inputs(input_name)),
+            inputs: Some(inputs("nixpgks")),
             locked: Some(Locked::Git {
-                rev: String::from(rev),
-                r#ref: None,
+                rev: locked_rev.clone(),
+                r#ref: git_ref.map(|r| String::from(&**r)).map(LockedRef::new),
                 url: String::from(url),
                 #[allow(clippy::unreadable_literal)]
                 last_modified: OffsetDateTime::from_unix_timestamp(1685572332).unwrap(),
             }),
-            original,
+            original: Some(Original::Git {
+                url: String::from(url),
+                rev: Some(&**locked_rev)
+                    .filter(|_| original_rev)
+                    .map(String::from)
+                    .map(OriginalRev::new),
+                r#ref: git_ref.cloned(),
+            }),
         }
     }
 
-    pub fn nixpkgs_node(rev: &str, original: Option<Original>) -> Node {
+    #[must_use]
+    pub fn github_node_with_owner_and_repo_only(
+        owner: &str,
+        repo: &str,
+        locked_rev: &LockedRev,
+    ) -> Node {
+        github_node(owner, repo, locked_rev, false, None)
+    }
+
+    #[must_use]
+    pub fn github_node_with_ref(
+        owner: &str,
+        repo: &str,
+        locked_rev: &LockedRev,
+        git_ref: &OriginalRef,
+    ) -> Node {
+        github_node(owner, repo, locked_rev, false, Some(git_ref))
+    }
+
+    #[allow(clippy::similar_names)]
+    pub fn github_node(
+        owner: &str,
+        repo: &str,
+        locked_rev: &LockedRev,
+        original_rev: bool,
+        git_ref: Option<&OriginalRef>,
+    ) -> Node {
+        Node {
+            flake: None,
+            inputs: Some(inputs("nixpkgs")),
+            locked: Some(Locked::Github {
+                rev: locked_rev.clone(),
+                r#ref: git_ref.map(|r| String::from(&**r)).map(LockedRef::new),
+                owner: String::from(owner),
+                repo: String::from(repo),
+                #[allow(clippy::unreadable_literal)]
+                last_modified: OffsetDateTime::from_unix_timestamp(1685572332).unwrap(),
+            }),
+            original: Some(Original::Github {
+                owner: String::from(owner),
+                repo: String::from(repo),
+                rev: Some(&**locked_rev)
+                    .filter(|_| original_rev)
+                    .map(String::from)
+                    .map(OriginalRev::new),
+                r#ref: git_ref.cloned(),
+            }),
+        }
+    }
+
+    #[must_use]
+    pub fn nixpkgs_node_with_ref(indirect_ref: &OriginalRef, locked_rev: &LockedRev) -> Node {
+        indirect_node(
+            "nixpkgs",
+            Some(indirect_ref),
+            "NixOS",
+            "nixpgks",
+            locked_rev,
+            false,
+        )
+    }
+
+    pub fn indirect_node(
+        id: &str,
+        indirect_ref: Option<&OriginalRef>,
+        owner: &str,
+        repo: &str,
+        locked_rev: &LockedRev,
+        original_rev: bool,
+    ) -> Node {
+        Node {
+            flake: None,
+            inputs: Some(inputs("nixpkgs")),
+            locked: Some(Locked::Github {
+                rev: locked_rev.clone(),
+                r#ref: indirect_ref.map(|r| String::from(&**r)).map(LockedRef::new),
+                owner: String::from(owner),
+                repo: String::from(repo),
+                #[allow(clippy::unreadable_literal)]
+                last_modified: OffsetDateTime::from_unix_timestamp(1685572332).unwrap(),
+            }),
+            original: Some(Original::Indirect {
+                id: String::from(id),
+                r#ref: indirect_ref.cloned(),
+                rev: Some(&**locked_rev)
+                    .filter(|_| original_rev)
+                    .map(String::from)
+                    .map(OriginalRev::new),
+            }),
+        }
+    }
+
+    #[must_use]
+    pub fn nixpkgs_node(rev: &LockedRev, original: Option<Original>) -> Node {
         Node {
             flake: None,
             inputs: None,
             locked: Some(Locked::Github {
-                rev: String::from(rev),
+                rev: rev.clone(),
                 r#ref: None,
                 owner: String::from("NixOS"),
                 repo: String::from("nixpkgs"),
@@ -266,40 +489,19 @@ pub mod fixtures {
         }
     }
 
-    pub fn flake_lock(direct_input_original: Option<Original>) -> FlakeLock {
+    #[must_use]
+    pub fn flake_lock_with_node(name: &str, node: Node) -> FlakeLock {
         let mut nodes = HashMap::new();
 
         nodes.insert(String::from("root"), root_node("nix-rust-utils"));
+        nodes.insert(String::from(name), node);
+
         nodes.insert(
-            String::from("nix-rust-utils"),
-            git_node(
-                "nixpkgs",
-                "3892194d7b3293de8b30f1d19e2af45ba41ba8fd",
-                "https://git.vdx.hu/voidcontext/nix-rust-utils.git",
-                direct_input_original,
+            String::from("nixpkgs"),
+            nixpkgs_node(
+                &LockedRev::from("a08e061a4ee8329747d54ddf1566d34c55c895eb"),
+                None,
             ),
-        );
-
-        nodes.insert(
-            String::from("nixpkgs"),
-            nixpkgs_node("a08e061a4ee8329747d54ddf1566d34c55c895eb", None),
-        );
-
-        FlakeLock {
-            nodes,
-            root: String::from("root"),
-        }
-    }
-
-    pub fn flake_lock_with_node(node: Node) -> FlakeLock {
-        let mut nodes = HashMap::new();
-
-        nodes.insert(String::from("root"), root_node("nix-rust-utils"));
-        nodes.insert(String::from("nix-rust-utils"), node);
-
-        nodes.insert(
-            String::from("nixpkgs"),
-            nixpkgs_node("a08e061a4ee8329747d54ddf1566d34c55c895eb", None),
         );
 
         FlakeLock {
@@ -312,8 +514,8 @@ pub mod fixtures {
 #[cfg(test)]
 mod tests {
     use crate::nix::{
-        fixtures::{flake_lock, git_node},
-        Original,
+        fixtures::{flake_lock_with_node, git_node_with_url_only, github_node_with_ref, original},
+        LockedRev, OriginalRef,
     };
 
     use super::FlakeLock;
@@ -327,36 +529,49 @@ mod tests {
 
     #[test]
     fn top_level_nodes_should_return_root_nodes() {
-        let top_level_nodes = flake_lock(None).input_nodes();
+        let node = git_node_with_url_only(
+            "https://git.vdx.hu/voidcontext/nix-rust-utils.git",
+            &LockedRev::from("3892194d7b3293de8b30f1d19e2af45ba41ba8fd"),
+        );
+        let name = "nix-rust-utils";
+        let top_level_nodes = flake_lock_with_node(name, node.clone()).input_nodes();
+
         assert_eq!(
             top_level_nodes,
-            [(
-                String::from("nix-rust-utils"),
-                git_node(
-                    "nixpkgs",
-                    "3892194d7b3293de8b30f1d19e2af45ba41ba8fd",
-                    "https://git.vdx.hu/voidcontext/nix-rust-utils.git",
-                    None,
-                )
-            )]
-            .into_iter()
-            .collect()
+            [(String::from(name), node)].into_iter().collect()
         );
     }
 
     #[test]
     fn locked_rev_of_should_return_locked_revision() {
+        let node = git_node_with_url_only(
+            "https://git.vdx.hu/voidcontext/nix-rust-utils.git",
+            &LockedRev::from("3892194d7b3293de8b30f1d19e2af45ba41ba8fd"),
+        );
+        let name = "nix-rust-utils";
         assert_eq!(
-            flake_lock(None).locked_rev_of("nix-rust-utils"),
-            Some(String::from("3892194d7b3293de8b30f1d19e2af45ba41ba8fd"))
+            flake_lock_with_node(name, node).locked_rev_of("nix-rust-utils"),
+            Some(LockedRev::from("3892194d7b3293de8b30f1d19e2af45ba41ba8fd"))
         );
     }
 
     #[test]
-    fn original_of_should_return_locked_revision() {
-        let original = Original::github("voidcontext", "nix-rust-utils", Some("refs/heads/main"));
+    fn original_of_should_return_original_definition_of_input() {
+        let node = github_node_with_ref(
+            "voidcontext",
+            "nix-rust-utils",
+            &LockedRev::from("3892194d7b3293de8b30f1d19e2af45ba41ba8fd"),
+            &OriginalRef::from("refs/heads/main"),
+        );
+        let name = "nix-rust-utils";
+        let original = original::github_with_ref(
+            "voidcontext",
+            "nix-rust-utils",
+            &OriginalRef::from("refs/heads/main"),
+        );
+
         assert_eq!(
-            flake_lock(Some(original.clone())).original_of("nix-rust-utils"),
+            flake_lock_with_node(name, node).original_of(name),
             Some(original)
         );
     }

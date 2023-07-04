@@ -1,12 +1,11 @@
 use crate::cli::Args;
 use clap::Parser;
 use cli::Command;
+use lamina::commands;
 use log::LevelFilter::{Debug, Info};
 use simple_logger::SimpleLogger;
 
 mod cli;
-mod commands;
-mod nix;
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
@@ -23,6 +22,6 @@ fn main() -> anyhow::Result<()> {
             dst_input,
             with_flake,
             src_input,
-        } => commands::sync(&dst_input, with_flake, &src_input),
+        } => commands::sync(&dst_input, &with_flake, &src_input),
     }
 }
