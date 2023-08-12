@@ -68,46 +68,51 @@
       "inputs": {
         "crane": "crane",
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs",
-        "nixpkgs-unstable": "nixpkgs-unstable",
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "nixpkgs-unstable": [
+          "nixpkgs-unstable"
+        ],
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1685572332,
-        "narHash": "sha256-B7bZ4Yw9Zm2LwsbYuAMFAU1YGUt5gNX06uDlZFF2jYc=",
-        "ref": "refs/heads/main",
-        "rev": "3892194d7b3293de8b30f1d19e2af45ba41ba8fd",
-        "revCount": 67,
+        "lastModified": 1688540009,
+        "narHash": "sha256-IpBJTby9g8IERVU4jN4FFsWHMyZAIgTdeH1NOYCOxdU=",
+        "ref": "refs/tags/v0.7.0",
+        "rev": "793f739fb104dd36f466ced09eb9fefec6910af3",
+        "revCount": 69,
         "type": "git",
         "url": "https://git.vdx.hu/voidcontext/nix-rust-utils.git"
       },
       "original": {
+        "ref": "refs/tags/v0.7.0",
         "type": "git",
         "url": "https://git.vdx.hu/voidcontext/nix-rust-utils.git"
       }
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1683627095,
-        "narHash": "sha256-8u9SejRpL2TrMuHBdhYh4FKc1OGPDLyWTpIbNTtoHsA=",
+        "lastModified": 1688515527,
+        "narHash": "sha256-BroYh4T4p9KGJ9j2nomZU0F/BYULDZwil++Y6DleHSQ=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "a08e061a4ee8329747d54ddf1566d34c55c895eb",
+        "rev": "1c4ea35a6cf38aa2745311281d6906cc26ddf4fd",
         "type": "github"
       },
       "original": {
         "id": "nixpkgs",
-        "ref": "release-22.11",
+        "ref": "release-23.05",
         "type": "indirect"
       }
     },
     "nixpkgs-unstable": {
       "locked": {
-        "lastModified": 1683535585,
-        "narHash": "sha256-ND6gCDEfuMNsaJlZQzEbl6hTGrAzURtLoZoGR5dJaCw=",
+        "lastModified": 1688100262,
+        "narHash": "sha256-RlyMyeya6hClpgyMtKLYjf/watrWpyvlwInj8+d94lc=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "d9b8ae36f31046dbcf05b6cdc45e860bf19b0b7e",
+        "rev": "3c614fbc76fc152f3e1bc4b2263da6d90adf80fb",
         "type": "github"
       },
       "original": {
@@ -118,7 +123,9 @@
     },
     "root": {
       "inputs": {
-        "nix-rust-utils": "nix-rust-utils"
+        "nix-rust-utils": "nix-rust-utils",
+        "nixpkgs": "nixpkgs",
+        "nixpkgs-unstable": "nixpkgs-unstable"
       }
     },
     "rust-overlay": {
