@@ -1,9 +1,4 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
-
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use rnix::{
     ast::{self, Attr, AttrpathValue, Entry, HasEntry, InterpolPart},
     Root,
@@ -13,58 +8,13 @@ use rowan::{
     GreenNode, GreenNodeBuilder,
 };
 
+/// Given 2 flakes in string representation this function syncs the destination input to be the same
+/// as the source input
 pub fn sync(
-    src_input: &str,
-    dst_input: &str,
-    source: &Path,
-    destination: &Path,
-) -> anyhow::Result<()> {
-    log::debug!("syncing flake.nix file");
-    let source_flake_nix =
-        fs::read_to_string(ensure_flake_nix_path(source)).with_context(|| {
-            format!(
-                "Failed to read {:?}",
-                ensure_flake_nix_path(source).to_str()
-            )
-        })?;
-    let destination_flake_nix = fs::read_to_string(ensure_flake_nix_path(destination))
-        .with_context(|| {
-            format!(
-                "Failed to read {:?}",
-                ensure_flake_nix_path(destination).to_str()
-            )
-        })?;
-
-    let updated_flake_nix = sync_str(
-        src_input,
-        dst_input,
-        &source_flake_nix,
-        &destination_flake_nix,
-    )?;
-
-    fs::write(ensure_flake_nix_path(destination), updated_flake_nix).with_context(|| {
-        format!(
-            "Failed to write {:?}",
-            ensure_flake_nix_path(destination).to_str()
-        )
-    })?;
-
-    Ok(())
-}
-
-fn ensure_flake_nix_path(path: &Path) -> PathBuf {
-    let mut path = path.to_path_buf();
-    if path.is_dir() {
-        path.push("flake.nix");
-    }
-    path
-}
-
-fn sync_str(
-    src_input: &str,
-    dst_input: &str,
     source_flake_nix: &str,
+    src_input: &str,
     destination_flake_nix: &str,
+    dst_input: &str,
 ) -> anyhow::Result<String> {
     let source_flake = rnix::Root::parse(source_flake_nix).ok()?;
     let destination_flake = rnix::Root::parse(destination_flake_nix).ok()?;
@@ -166,7 +116,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use rstest::rstest;
 
-    use super::sync_str;
+    use super::sync;
 
     fn oneline(url: &str) -> String {
         format!(
@@ -245,9 +195,7 @@ mod tests {
         #[case] destination: String,
         #[case] expected: String,
     ) {
-        assert_eq!(
-            sync_str(input, input, &source, &destination).unwrap(),
-            expected
-        ); // TODO: test scenario missing: different src and dst input name
+        assert_eq!(sync(&source, input, &destination, input).unwrap(), expected);
+        // TODO: test scenario missing: different src and dst input name
     }
 }

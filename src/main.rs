@@ -14,14 +14,11 @@ fn main() -> anyhow::Result<()> {
     SimpleLogger::new().with_level(log_level).init().unwrap();
 
     match args.command {
-        Command::LastModified => {
-            commands::last_modified();
-            Ok(())
-        }
+        Command::LastModified => commands::last_modified(),
         Command::Sync {
-            dst_input,
+            dst_input_name,
             with_flake,
-            src_input,
-        } => commands::sync(&dst_input, &with_flake, &src_input),
+            src_input_name,
+        } => commands::sync(&with_flake, &src_input_name, &dst_input_name),
     }
 }

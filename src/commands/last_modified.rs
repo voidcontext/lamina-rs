@@ -1,13 +1,11 @@
-use crate::nix::{self, FlakeLock};
-use std::fs;
+use crate::nix::file::flake_lock::{FlakeLock, Locked};
+use std::env::current_dir;
 use time::format_description;
 
 use comfy_table::{presets::UTF8_BORDERS_ONLY, Table};
 
-pub fn last_modified() {
-    let flake_lock_json = fs::read_to_string("flake.lock").expect("Couldn't load flake.lock");
-    let flake_lock: FlakeLock =
-        serde_json::from_str(&flake_lock_json).expect("Couldn't deserialize flake.lock");
+pub fn last_modified() -> anyhow::Result<()> {
+    let flake_lock = FlakeLock::try_from(current_dir()?.as_path())?;
 
     let nodes = flake_lock.input_nodes();
     let mut names: Vec<String> = nodes.keys().cloned().collect();
@@ -22,20 +20,20 @@ pub fn last_modified() {
 
     for name in names {
         let last_modified = match nodes.get(&name).unwrap().locked.as_ref().unwrap() {
-            nix::Locked::Git {
+            Locked::Git {
                 rev: _,
                 r#ref: _,
                 url: _,
                 last_modified,
             }
-            | nix::Locked::Github {
+            | Locked::Github {
                 rev: _,
                 r#ref: _,
                 owner: _,
                 repo: _,
                 last_modified,
             }
-            | nix::Locked::GitLab {
+            | Locked::GitLab {
                 rev: _,
                 r#ref: _,
                 owner: _,
@@ -51,4 +49,6 @@ pub fn last_modified() {
     }
 
     println!("{table}");
+
+    Ok(())
 }

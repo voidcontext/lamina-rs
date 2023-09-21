@@ -8,17 +8,16 @@ use std::{
 use assert_cmd::Command;
 
 use cmd_lib_macros::run_cmd;
+use lamina::nix::file::flake_lock::FlakeLock;
 use sealed_test::prelude::*;
 
 use pretty_assertions::assert_eq;
 
-use lamina::nix::FlakeLock;
-
 fn run_test(
     src_dir: &str,
     dst_dir: &str,
-    src_input: &str,
-    dst_input: &str,
+    src_input_name: &str,
+    dst_input_name: &str,
     expected_flake_nix: &str,
 ) {
     run_cmd!(
@@ -34,9 +33,9 @@ fn run_test(
         .unwrap()
         .args([
             "sync",
-            dst_input,
             format!("../{src_dir}").as_str(),
-            src_input,
+            src_input_name,
+            dst_input_name,
         ])
         .current_dir(working_dir)
         .unwrap();
@@ -56,12 +55,12 @@ fn run_test(
         FlakeLock::try_from(Path::new(dst_dir)).expect("Couldn't parse destination flake");
 
     assert_eq!(
-        source_flake_lock.original_of(src_input),
-        destination_flake_lock.original_of(dst_input)
+        source_flake_lock.original_of(src_input_name),
+        destination_flake_lock.original_of(dst_input_name)
     );
     assert_eq!(
-        source_flake_lock.locked_of(src_input),
-        destination_flake_lock.locked_of(dst_input)
+        source_flake_lock.locked_of(src_input_name),
+        destination_flake_lock.locked_of(dst_input_name)
     );
 }
 

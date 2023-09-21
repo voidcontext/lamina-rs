@@ -16,8 +16,8 @@ pub enum Command {
     LastModified,
     /// Syncs input with another flake
     Sync {
-        dst_input: String,
         with_flake: PathBuf,
-        src_input: String,
+        src_input_name: String,
+        dst_input_name: String,
     },
 }
