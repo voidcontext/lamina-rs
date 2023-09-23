@@ -553,6 +553,7 @@ dependencies = [
  "cmd_lib",
  "cmd_lib_macros",
  "comfy-table",
+ "lazy_static",
  "log",
  "nova",
  "pretty_assertions",

@@ -8,22 +8,23 @@ use rowan::{
     GreenNode, GreenNodeBuilder,
 };
 
+use super::SyncInputNames;
+
 /// Given 2 flakes in string representation this function syncs the destination input to be the same
 /// as the source input
 pub fn sync(
     source_flake_nix: &str,
-    src_input: &str,
     destination_flake_nix: &str,
-    dst_input: &str,
+    input_names: &SyncInputNames,
 ) -> anyhow::Result<String> {
     let source_flake = rnix::Root::parse(source_flake_nix).ok()?;
     let destination_flake = rnix::Root::parse(destination_flake_nix).ok()?;
 
-    let source_input_url = find_input_url(src_input, &source_flake)?;
+    let source_input_url = find_input_url(input_names.source(), &source_flake)?;
     let source_input_url_str = string_content(&source_input_url)
         .ok_or_else(|| anyhow::Error::msg("Couldn't find input url value at source"))?;
 
-    let destination_input_url = find_input_url(dst_input, &destination_flake)?;
+    let destination_input_url = find_input_url(input_names.destination(), &destination_flake)?;
 
     let updated_flake = override_input_url(&destination_input_url, &source_input_url_str);
 
@@ -116,6 +117,8 @@ mod tests {
     use pretty_assertions::assert_eq;
     use rstest::rstest;
 
+    use crate::nix::SyncInputNames;
+
     use super::sync;
 
     fn oneline(url: &str) -> String {
@@ -195,7 +198,15 @@ mod tests {
         #[case] destination: String,
         #[case] expected: String,
     ) {
-        assert_eq!(sync(&source, input, &destination, input).unwrap(), expected);
+        assert_eq!(
+            sync(
+                &source,
+                &destination,
+                &SyncInputNames::same(input.to_string())
+            )
+            .unwrap(),
+            expected
+        );
         // TODO: test scenario missing: different src and dst input name
     }
 }

@@ -2,24 +2,34 @@ use crate::nix::file::flake_lock::FlakeLock;
 use crate::nix::SyncStrategy;
 use anyhow::anyhow;
 
-use super::file::flake_lock::{Locked, Original};
+use super::{
+    file::flake_lock::{Locked, Original},
+    SyncInputNames,
+};
 
 /// Calculates the sync strategy based on the given source and destination
-pub fn sync_strategy(
+pub fn sync_strategy<'a>(
     src_lock: &FlakeLock,
-    src_input_name: &str,
     dst_lock: &FlakeLock,
-    dst_input_name: &str,
-) -> anyhow::Result<SyncStrategy> {
-    let src_original = src_lock
-        .original_of(src_input_name)
-        .ok_or_else(|| anyhow!("Couldn't find {src_input_name}'s Original at source."))?;
+    input_names: &'a SyncInputNames,
+) -> anyhow::Result<SyncStrategy<'a>> {
+    let src_original = src_lock.original_of(input_names.source()).ok_or_else(|| {
+        anyhow!(
+            "Couldn't find {}'s Original at source.",
+            input_names.source()
+        )
+    })?;
     let src_locked = src_lock
-        .locked_of(src_input_name)
-        .ok_or_else(|| anyhow!("Couldn't find {src_input_name}'s Locked at source."))?;
+        .locked_of(input_names.source())
+        .ok_or_else(|| anyhow!("Couldn't find {}'s Locked at source.", input_names.source()))?;
     let dst_original = dst_lock
-        .original_of(dst_input_name)
-        .ok_or_else(|| anyhow!("Couldn't find {dst_input_name}'s Original at destination."))?;
+        .original_of(input_names.destination())
+        .ok_or_else(|| {
+            anyhow!(
+                "Couldn't find {}'s Original at destination.",
+                input_names.destination()
+            )
+        })?;
 
     let override_url = override_url(&src_original, &src_locked)?;
 
@@ -32,9 +42,9 @@ pub fn sync_strategy(
     if src_original.base() == dst_original.base() {
         if src_original.r#ref() == dst_original.r#ref() && src_original.rev() == dst_original.rev()
         {
-            Ok(SyncStrategy::LockOnly(override_url))
+            Ok(SyncStrategy::lock_only(override_url, input_names))
         } else {
-            Ok(SyncStrategy::FlakeNixAndLock(override_url))
+            Ok(SyncStrategy::flake_nix_and_lock(override_url, input_names))
         }
     } else {
         Err(anyhow!(
@@ -96,100 +106,99 @@ mod tests {
     use crate::nix::file::flake_lock::LockedRev;
     use crate::nix::file::flake_lock::Node;
     use crate::nix::file::flake_lock::OriginalRef;
-    use crate::nix::SyncStrategy;
+    use crate::nix::{SyncInputNames, SyncStrategy};
 
-    fn hash1() -> LockedRev {
-        LockedRev::from("f542386b0646cf39b9475a200979adabd07d98b2")
-    }
-    fn hash2() -> LockedRev {
-        LockedRev::from("4468e5deabf5e6d0740cd1a77df56f67093ec943")
+    lazy_static::lazy_static! {
+        static ref HASH_1: LockedRev = LockedRev::from("f542386b0646cf39b9475a200979adabd07d98b2");
+        static ref HASH_2: LockedRev = LockedRev::from("4468e5deabf5e6d0740cd1a77df56f67093ec943");
+        static ref INPUT_NAMES: SyncInputNames = SyncInputNames::same("nix-rust-utils".to_string());
     }
 
     #[rstest]
     // src -> dest -> strategy
     #[case( // git url -> git url -> lock only
-        git_node_with_url_only("https://example.com/user/repo.git", &hash1()),
-        git_node_with_url_only("https://example.com/user/repo.git", &hash2()),
-        Ok(SyncStrategy::LockOnly(format!(
-            "git+https://example.com/user/repo.git?rev={}", &*hash2()
-        )))
+        git_node_with_url_only("https://example.com/user/repo.git", &HASH_1),
+        git_node_with_url_only("https://example.com/user/repo.git", &HASH_2),
+        Ok(SyncStrategy::lock_only(format!(
+            "git+https://example.com/user/repo.git?rev={}", &**HASH_2
+        ), &INPUT_NAMES))
     )]
     #[case(// git url + ref -> git url -> flake.nix + lock
-        git_node_with_url_only("https://example.com/user/repo.git", &hash1()),
-        git_node_with_ref("https://example.com/user/repo.git", &hash2(),&OriginalRef::from("refs/tags/v0.2.0")),
-        Ok(SyncStrategy::FlakeNixAndLock(format!(
-            "git+https://example.com/user/repo.git?ref=refs/tags/v0.2.0&rev={}", &*hash2()         
-        )))
+        git_node_with_url_only("https://example.com/user/repo.git", &HASH_1),
+        git_node_with_ref("https://example.com/user/repo.git", &HASH_2,&OriginalRef::from("refs/tags/v0.2.0")),
+        Ok(SyncStrategy::flake_nix_and_lock(format!(
+            "git+https://example.com/user/repo.git?ref=refs/tags/v0.2.0&rev={}", &**HASH_2         
+        ), &INPUT_NAMES))
     )]
     #[case(// git url + ref -> git url + ref (different ref) -> flake.nix + lock
-        git_node_with_ref("https://example.com/user/repo.git", &hash1(),&OriginalRef::from("refs/tags/v0.1.0")),
-        git_node_with_ref("https://example.com/user/repo.git", &hash2(),&OriginalRef::from("refs/tags/v0.2.0")),
-        Ok(SyncStrategy::FlakeNixAndLock(format!(
-            "git+https://example.com/user/repo.git?ref=refs/tags/v0.2.0&rev={}", &*hash2()
-        )))
+        git_node_with_ref("https://example.com/user/repo.git", &HASH_1,&OriginalRef::from("refs/tags/v0.1.0")),
+        git_node_with_ref("https://example.com/user/repo.git", &HASH_2,&OriginalRef::from("refs/tags/v0.2.0")),
+        Ok(SyncStrategy::flake_nix_and_lock(format!(
+            "git+https://example.com/user/repo.git?ref=refs/tags/v0.2.0&rev={}", &**HASH_2
+        ), &INPUT_NAMES))
     )]
     #[case(// git url + ref -> git url + ref (same ref) -> lock only
-        git_node_with_ref("https://example.com/user/repo.git", &hash1(),&OriginalRef::from("refs/tags/v0.2.0")),
-        git_node_with_ref("https://example.com/user/repo.git", &hash2(),&OriginalRef::from("refs/tags/v0.2.0")),
-        Ok(SyncStrategy::LockOnly(format!(
-            "git+https://example.com/user/repo.git?ref=refs/tags/v0.2.0&rev={}", &*hash2()
-        )))
+        git_node_with_ref("https://example.com/user/repo.git", &HASH_1,&OriginalRef::from("refs/tags/v0.2.0")),
+        git_node_with_ref("https://example.com/user/repo.git", &HASH_2,&OriginalRef::from("refs/tags/v0.2.0")),
+        Ok(SyncStrategy::lock_only(format!(
+            "git+https://example.com/user/repo.git?ref=refs/tags/v0.2.0&rev={}", &**HASH_2
+        ), &INPUT_NAMES))
     )]
     #[case(// git url + rev -> git url + rev (same rev) -> noop
-        git_node_with_rev("https://example.com/user/repo.git", &hash1()),
-        git_node_with_rev("https://example.com/user/repo.git", &hash1()),
-        Ok(SyncStrategy::LockOnly(format!(
-            "git+https://example.com/user/repo.git?rev={}", &*hash1()
-        ))) // TODO: this should be NOOP really
+        git_node_with_rev("https://example.com/user/repo.git", &HASH_1),
+        git_node_with_rev("https://example.com/user/repo.git", &HASH_1),
+        Ok(SyncStrategy::lock_only(format!(
+            "git+https://example.com/user/repo.git?rev={}", &**HASH_1
+        ), &INPUT_NAMES)) // TODO: this should be NOOP really
     )]
     #[case(// git url + rev -> git url + rev (different rev) -> flake.nix + lock
-        git_node_with_rev("https://example.com/user/repo.git", &hash1()),
-        git_node_with_rev("https://example.com/user/repo.git", &hash2()),
-        Ok(SyncStrategy::FlakeNixAndLock(format!(
-            "git+https://example.com/user/repo.git?rev={}", &*hash2()
-        )))
+        git_node_with_rev("https://example.com/user/repo.git", &HASH_1),
+        git_node_with_rev("https://example.com/user/repo.git", &HASH_2),
+        Ok(SyncStrategy::flake_nix_and_lock(format!(
+            "git+https://example.com/user/repo.git?rev={}", &**HASH_2
+        ), &INPUT_NAMES))
     )]
     #[case(// github -> github -> lock only
-        github_node_with_owner_and_repo_only("owner", "repo", &hash1()),
-        github_node_with_owner_and_repo_only("owner", "repo", &hash2()),
-        Ok(SyncStrategy::LockOnly(format!(
-            "github:owner/repo/{}", &*hash2()
-        )))
+        github_node_with_owner_and_repo_only("owner", "repo", &HASH_1),
+        github_node_with_owner_and_repo_only("owner", "repo", &HASH_2),
+        Ok(SyncStrategy::lock_only(format!(
+            "github:owner/repo/{}", &**HASH_2
+        ), &INPUT_NAMES))
     )]
     #[case(// github + ref -> github + ref (same ref) -> lock only
-        github_node_with_ref("owner", "repo", &hash1(), &OriginalRef::from("main")),
-        github_node_with_ref("owner", "repo", &hash2(), &OriginalRef::from("main")),
-        Ok(SyncStrategy::LockOnly(format!(
-            "github:owner/repo/{}", &*hash2()
-        )))
+        github_node_with_ref("owner", "repo", &HASH_1, &OriginalRef::from("main")),
+        github_node_with_ref("owner", "repo", &HASH_2, &OriginalRef::from("main")),
+        Ok(SyncStrategy::lock_only(format!(
+            "github:owner/repo/{}", &**HASH_2
+        ), &INPUT_NAMES))
     )]
     #[case(// github + ref -> github + ref (different ref) -> flake.nix + lock
-        github_node_with_ref("owner", "repo", &hash1(), &OriginalRef::from("main")),
-        github_node_with_ref("owner", "repo", &hash2(), &OriginalRef::from("feature-branch")),
-        Ok(SyncStrategy::FlakeNixAndLock(format!(
-            "github:owner/repo/{}", &*hash2()
-        )))
+        github_node_with_ref("owner", "repo", &HASH_1, &OriginalRef::from("main")),
+        github_node_with_ref("owner", "repo", &HASH_2, &OriginalRef::from("feature-branch")),
+        Ok(SyncStrategy::flake_nix_and_lock(format!(
+            "github:owner/repo/{}", &**HASH_2
+        ), &INPUT_NAMES))
     )]
     #[case(// indirect + ref -> indirect + ref (same ref) -> lock only
-        nixpkgs_node_with_ref(&OriginalRef::from("release-23.05"), &hash1()),
-        nixpkgs_node_with_ref(&OriginalRef::from("release-23.05"), &hash2()),
-        Ok(SyncStrategy::LockOnly(format!(
-            "nixpkgs/{}", &*hash2()
-        )))
+        nixpkgs_node_with_ref(&OriginalRef::from("release-23.05"), &HASH_1),
+        nixpkgs_node_with_ref(&OriginalRef::from("release-23.05"), &HASH_2),
+        Ok(SyncStrategy::lock_only(format!(
+            "nixpkgs/{}", &**HASH_2
+        ), &INPUT_NAMES))
     )]
     #[case(// github -> git -> error
-        git_node_with_url_only("https://example.com/user/repo.git", &hash1()),
-        github_node_with_ref("owner", "repo", &hash1(), &OriginalRef::from("main")),
+        git_node_with_url_only("https://example.com/user/repo.git", &HASH_1),
+        github_node_with_ref("owner", "repo", &HASH_1, &OriginalRef::from("main")),
         Err("Cannot sync inputst with different type or from different git repository")
     )]
     #[case(
-        nixpkgs_node(&hash1(), None),
-        nixpkgs_node_with_ref(&OriginalRef::from("release-23.05"), &hash2()),
+        nixpkgs_node(&HASH_1, None),
+        nixpkgs_node_with_ref(&OriginalRef::from("release-23.05"), &HASH_2),
         Err("Couldn't find nix-rust-utils's Original at destination.")
     )]
     #[case(
-        nixpkgs_node_with_ref(&OriginalRef::from("release-23.05"), &hash2()),
-        nixpkgs_node(&hash1(), None),
+        nixpkgs_node_with_ref(&OriginalRef::from("release-23.05"), &HASH_2),
+        nixpkgs_node(&HASH_1, None),
         Err("Couldn't find nix-rust-utils's Original at source.")
     )]
     fn input_override_arg_returns_correct_argument(
@@ -199,9 +208,8 @@ mod tests {
     ) {
         let result = sync_strategy(
             &flake_lock_with_node("nix-rust-utils", node2),
-            "nix-rust-utils",
             &flake_lock_with_node("nix-rust-utils", node1),
-            "nix-rust-utils",
+            &INPUT_NAMES,
         );
 
         assert_eq!(
