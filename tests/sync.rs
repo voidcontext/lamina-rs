@@ -65,7 +65,6 @@ fn run_test(
 }
 
 #[sealed_test(files=["tests/fixtures/nested", "tests/fixtures/oneline"])]
-#[ignore]
 fn test_sync_1() {
     let expected = r#"{
   inputs.nixpkgs-indirect-ref.url = "nixpkgs/8b3ad2fe8e06c2189908b7164f2f0bf2126b83b1";
@@ -87,7 +86,6 @@ fn test_sync_1() {
 }
 
 #[sealed_test(files=["tests/fixtures/nested", "tests/fixtures/oneline"])]
-#[ignore]
 fn test_sync_2() {
     let expected = r#"{
   inputs = {
@@ -117,7 +115,6 @@ fn test_sync_2() {
 }
 
 #[sealed_test(files=["tests/fixtures/nested", "tests/fixtures/oneline"])]
-#[ignore]
 fn test_batch_sync() {
     run_cmd!(
         git init .;

@@ -23,18 +23,23 @@
         ];
       };
 
-      crate = nru.mkCrate (commonArgs // {
-        doCheck = false;
-      });
-      checks = nru.mkChecks (commonArgs // {
-        inherit crate;
-        nextest = true;
-      });
+      crate = nru.mkCrate (commonArgs
+        // {
+          doCheck = false;
+        });
+      checks = nru.mkChecks (commonArgs
+        // {
+          inherit crate;
+          nextest = true;
+        });
     in {
-      inherit checks;
+      checks = builtins.removeAttrs checks ["cargo-nextest"];
 
       packages.default = crate;
 
-      devShells.default = nru.mkDevShell {inputsFrom = [crate]; inherit checks;};
+      devShells.default = nru.mkDevShell {
+        inputsFrom = [crate];
+        inherit checks;
+      };
     });
 }

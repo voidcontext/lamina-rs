@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fs, path::Path};
 
+use anyhow::Context;
 use time::OffsetDateTime;
 
 use serde::Deserialize;
@@ -51,8 +52,9 @@ impl TryFrom<&Path> for FlakeLock {
     type Error = anyhow::Error;
 
     fn try_from(value: &Path) -> Result<Self, Self::Error> {
-        let flake_lock_json = fs::read_to_string(super::ensure_file(value, "flake.lock"))
-            .expect("Couldn't load flake.lock");
+        let lock_file = super::ensure_file(value, "flake.lock");
+        let flake_lock_json = fs::read_to_string(lock_file.clone())
+            .with_context(|| format!("Couldn't read {}", lock_file.to_str().unwrap_or("N/A")))?;
 
         serde_json::from_str::<FlakeLock>(&flake_lock_json).map_err(anyhow::Error::new)
     }

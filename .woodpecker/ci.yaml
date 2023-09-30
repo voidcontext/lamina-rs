@@ -1,13 +1,36 @@
+when:
+  - event: push
+    branch: main
+  - event: pull_request
+
 steps:
   check:
-    image: nixos/nix
-    commands:
-      - set -o pipefail
-      - echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
-      - echo "trusted-substituters = file:///var/lib/woodpecker-agent/nix-store" >> /etc/nix/nix.conf
-      - echo "extra-trusted-public-keys = $(cat /var/lib/woodpecker-agent/nix-store/cache-pub-key.pem)" >> /etc/nix/nix.conf
-      - echo "extra-substituters = file:///var/lib/woodpecker-agent/nix-store" >> /etc/nix/nix.conf
-      - nix flake check 2>&1 | nix run "git+https://git.vdx.hu/voidcontext/nix-cache-copy?ref=refs/tags/v0.2.0" -- -t file:///var/lib/woodpecker-agent/nix-store -k /var/lib/woodpecker-agent/nix-store/cache-priv-key.pem
-      - nix develop .# --command cargo nextest run  -- --ignored
-    volumes:
-      - /var/lib/woodpecker-agent/nix-store:/var/lib/woodpecker-agent/nix-store
+    image: git.vdx.hu/voidcontext/woodpecker-plugin-nix-attic:0.1.1
+    settings:
+      binary_cache: https://cache.nix.vdx.hu/private
+      binary_cache_public_key: private:b6wO7rXF+4WtPCocEKlbdU/bTqEdJAqRrzOu0O3cK68=
+      binary_cache_token:
+        from_secret: attic_token
+      script: |
+        nix flake check
+
+        nix-env -iA nixpkgs.jq
+
+        # Reuse cargo artifacts from the build from the checks
+        __deps_drv=$(nix path-info --derivation --recursive .#default | grep lamina-deps)
+        __deps_target=$(nix derivation show $__deps_drv | jq -r ".\"$__deps_drv\".outputs.out.path")
+        cp --dereference --preserve=timestamps --no-preserve=ownership -r $__deps_target/target .
+        chmod -R u+w target
+        find target -name '.cargo-lock' -delete
+
+        # Use vendored cargo deps
+        __vendor_drv=$(nix path-info --derivation --recursive .#default | grep vendor-cargo-deps.drv)
+        __vendor_conf=$(nix derivation show $__vendor_drv | jq -r ".\"$__vendor_drv\".outputs.out.path")
+        mkdir ~/.cargo
+        cat $__vendor_conf/config.toml >> ~/.cargo/config.toml
+
+        # Run all tests, including integrations tests that need internet access
+        nix develop .# --command cargo nextest run --release
+
+        attic login attic $PLUGIN_BINARY_CACHE $PLUGIN_BINARY_CACHE_TOKEN
+        attic push private $(nix-store --query --requisites --include-outputs $(nix path-info --derivation .#default))
