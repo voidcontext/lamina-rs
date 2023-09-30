@@ -1,3 +1,5 @@
+use std::env::current_dir;
+
 use crate::cli::Args;
 use clap::Parser;
 use cli::Command;
@@ -19,15 +21,18 @@ fn main() -> anyhow::Result<()> {
     match args.command {
         Command::LastModified => commands::last_modified(),
         Command::Sync {
-            dst_input_name,
-            with_flake,
+            src,
             src_input_name,
+            dst,
+            dst_input_name,
         } => commands::sync(
-            &with_flake,
+            &src,
+            &(dst.unwrap_or_else(|| current_dir().expect("Couldn't determine the current dir"))),
             &SyncInputNames::source_and_destination(src_input_name, dst_input_name),
         ),
-        Command::BatchSync { with_flake, inputs } => batch_sync(
-            &with_flake,
+        Command::BatchSync { src, dst, inputs } => batch_sync(
+            &src,
+            &(dst.unwrap_or_else(|| current_dir().expect("Couldn't determine the current dir"))),
             &inputs
                 .into_iter()
                 .map(SyncInputNames::same)
