@@ -8,7 +8,7 @@ steps:
     image: git.vdx.hu/voidcontext/woodpecker-plugin-nix-attic:0.1.1
     settings:
       binary_cache: https://cache.nix.vdx.hu/private
-      binary_cache_public_key: private:b6wO7rXF+4WtPCocEKlbdU/bTqEdJAqRrzOu0O3cK68=
+      binary_cache_public_key: private:O0/Z0BQZpKKHQQES65u7xNfZF7eCZoz9RKJi191TGaM=
       binary_cache_token:
         from_secret: attic_token
       script: |
