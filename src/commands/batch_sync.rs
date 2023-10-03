@@ -1,13 +1,17 @@
-use std::{env::current_dir, path::Path};
+use std::path::Path;
 
 use crate::nix::{
     file::{self, flake_lock::FlakeLock},
     flake_lock, flake_nix, process, SyncInputNames, SyncStrategy,
 };
 
-pub fn batch_sync(source: &Path, inputs: &[SyncInputNames]) -> anyhow::Result<()> {
+pub fn batch_sync(
+    source: &Path,
+    destination: &Path,
+    inputs: &[SyncInputNames],
+) -> anyhow::Result<()> {
     let source_flake_lock = FlakeLock::try_from(source)?;
-    let destination_flake_lock = FlakeLock::try_from(current_dir()?.as_path())?;
+    let destination_flake_lock = FlakeLock::try_from(destination)?;
 
     let strategies = inputs
         .iter()
@@ -42,7 +46,7 @@ pub fn batch_sync(source: &Path, inputs: &[SyncInputNames]) -> anyhow::Result<()
         .collect::<anyhow::Result<Vec<SyncStrategy>>>()?;
 
     let source_flake_nix = file::flake_nix::read_to_string(source)?;
-    let destination_flake_nix = file::flake_nix::read_to_string(&current_dir()?)?;
+    let destination_flake_nix = file::flake_nix::read_to_string(destination)?;
 
     let modified_flake_nix_content =
         strategies
@@ -60,7 +64,14 @@ pub fn batch_sync(source: &Path, inputs: &[SyncInputNames]) -> anyhow::Result<()
                 })
             })?;
 
-    file::flake_nix::write(&current_dir()?, &modified_flake_nix_content)?;
+    let dst_dir = if destination.is_dir() {
+        destination
+    } else {
+        destination
+            .parent()
+            .expect("Cannot find parent of destination")
+    };
+    file::flake_nix::write(dst_dir, &modified_flake_nix_content)?;
 
     strategies
         .iter()
@@ -72,7 +83,7 @@ pub fn batch_sync(source: &Path, inputs: &[SyncInputNames]) -> anyhow::Result<()
             | SyncStrategy::FlakeNixAndLock {
                 lock_url,
                 input_names,
-            } => process::override_input(input_names.destination(), lock_url),
+            } => process::override_input(input_names.destination(), lock_url, dst_dir),
         })
         .collect::<anyhow::Result<Vec<_>>>()?;
 

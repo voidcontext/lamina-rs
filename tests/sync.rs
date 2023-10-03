@@ -35,6 +35,7 @@ fn run_test(
             "sync",
             format!("../{src_dir}").as_str(),
             src_input_name,
+            ".",
             dst_input_name,
         ])
         .current_dir(working_dir)
@@ -122,20 +123,21 @@ fn test_batch_sync() {
     )
     .unwrap();
 
-    let mut working_dir = current_dir().unwrap();
-    working_dir.push("oneline");
+    let working_dir = current_dir().unwrap().to_str().unwrap().to_string();
 
     let output = Command::cargo_bin("lamina")
         .unwrap()
         .args([
+            "-d",
             "batch-sync",
-            "../nested",
+            format!("{working_dir}/nested").as_str(),
+            format!("{working_dir}/oneline").as_str(),
             "nixpkgs-indirect-ref",
             "nixpkgs-indirect-rev",
             "nixpkgs-github",
             // "nix-rust-utils-git", // TODO: can't we switch git repositories?
         ])
-        .current_dir(working_dir)
+        .env("HOME", working_dir.as_str())
         .unwrap();
 
     println!("status: {}", output.status);
@@ -144,7 +146,8 @@ fn test_batch_sync() {
 
     assert!(output.status.success());
 
-    let synced = fs::read_to_string("oneline/flake.nix").unwrap();
+    let synced = fs::read_to_string(format!("{working_dir}/oneline/flake.nix"))
+        .expect("Cannot read fixture: oneline/flake.nix");
     assert_eq!(
         synced,
         r#"{
@@ -158,10 +161,10 @@ fn test_batch_sync() {
 "#
     );
 
-    let source_flake_lock =
-        FlakeLock::try_from(Path::new("nested")).expect("Couldn't parse source flake");
-    let destination_flake_lock =
-        FlakeLock::try_from(Path::new("oneline")).expect("Couldn't parse destination flake");
+    let source_flake_lock = FlakeLock::try_from(Path::new(&format!("{working_dir}/nested")))
+        .expect("Couldn't parse source flake");
+    let destination_flake_lock = FlakeLock::try_from(Path::new(&format!("{working_dir}/oneline")))
+        .expect("Couldn't parse destination flake");
 
     for input_name in &[
         "nixpkgs-indirect-ref",
