@@ -26,6 +26,15 @@
       crate = nru.mkCrate (commonArgs
         // {
           doCheck = false;
+
+          # Shell completions
+          COMPLETIONS_TARGET="target/";
+          nativeBuildInputs = [ pkgs.installShellFiles ];
+          postInstall = ''
+            installShellCompletion --bash target/lamina.bash
+            installShellCompletion --fish target/lamina.fish
+            installShellCompletion --zsh  target/_lamina
+          '';
         });
       checks = nru.mkChecks (commonArgs
         // {
