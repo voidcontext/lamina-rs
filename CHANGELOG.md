@@ -2,6 +2,32 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.2.0 - 2023-10-06
+#### Build system
+- remove unnecessary input override - (62873ff) - Gabor Pihaj
+- update the public key of the newly crated private cache (#9) - (bbddcd2) - Gabor Pihaj
+- use binary cache for builds + use nix-attic woodpecker plugin (#8) - (af3a96e) - Gabor Pihaj
+- upgrade nix rust utils to v0.8.1 (#7) - (bd7b945) - Gabor Pihaj
+- fixing woodpecker ci (#2) - (b21c52c) - Gabor Pihaj
+- upgrade nix-rust-utils and nixpkgs - (30a3464) - Gabor Pihaj
+#### Documentation
+- update readme (#10) - (9a9ffb1) - Gabor Pihaj
+#### Features
+- add overlays to flake output (#13) - (d89dda8) - Gabor Pihaj
+- add shell completion (#12) - (d420602) - Gabor Pihaj
+- add ability to define destination flake (#11) - (57463e2) - Gabor Pihaj
+- implement batch sync command (#3) - (d16aeb0) - Gabor Pihaj
+- sync the url of the input in flake.nix files when necessary - (d18e622) - Gabor Pihaj
+#### Miscellaneous Chores
+- upgrade nixpkgs and nix-rust-utils (#14) - (6a274a7) - Gabor Pihaj
+- reformat code - (4488299) - Gabor Pihaj
+#### Refactoring
+- reorganise the code and change cli arguments' order (#1) - (d8e5444) - Gabor Pihaj
+- move test impl closer to tests - (b7b004e) - Gabor Pihaj
+- create nix module directory - (30e1d16) - Gabor Pihaj
+
+- - -
+
 ## v0.1.0 - 2023-06-30
 #### Bug Fixes
 - use input nodes propery when syncing + add logging - (b6e2eca) - Gabor Pihaj
