@@ -1,9 +1,8 @@
 {
   inputs.nixpkgs.url = "nixpkgs/release-23.05";
-  inputs.nixpkgs-unstable.url = "nixpkgs/nixpkgs-unstable";
   inputs.flake-utils.url = "github:numtide/flake-utils";
 
-  inputs.nix-rust-utils.url = "git+https://git.vdx.hu/voidcontext/nix-rust-utils.git?ref=refs/tags/v0.8.1";
+  inputs.nix-rust-utils.url = "git+https://git.vdx.hu/voidcontext/nix-rust-utils.git?ref=refs/tags/v0.8.2";
   inputs.nix-rust-utils.inputs.nixpkgs.follows = "nixpkgs";
   inputs.nix-rust-utils.inputs.nixpkgs-unstable.follows = "nixpkgs-unstable";
 
