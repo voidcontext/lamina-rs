@@ -14,12 +14,13 @@ steps:
       script: |
         nix flake check
 
-        nix-env -iA nixpkgs.jq
+        nix-env -iA nixpkgs.jq nixpkgs.zstd
 
         # Reuse cargo artifacts from the build from the checks
         __deps_drv=$(nix path-info --derivation --recursive .#default | grep lamina-deps)
         __deps_target=$(nix derivation show $__deps_drv | jq -r ".\"$__deps_drv\".outputs.out.path")
-        cp --dereference --preserve=timestamps --no-preserve=ownership -r $__deps_target/target .
+        cp --dereference --preserve=timestamps --no-preserve=ownership -r $__deps_target/target.tar.zst ./
+        unzstd < target.tar.zst | tar xvf -
         chmod -R u+w target
         find target -name '.cargo-lock' -delete
 
@@ -29,8 +30,8 @@ steps:
         mkdir ~/.cargo
         cat $__vendor_conf/config.toml >> ~/.cargo/config.toml
 
-        # Run all tests, including integrations tests that need internet access
-        nix develop .# --command cargo nextest run --release
+        # Run integration tests
+        nix develop .# --command cargo nextest run --release -E 'kind(test)'
 
         attic login attic $PLUGIN_BINARY_CACHE $PLUGIN_BINARY_CACHE_TOKEN
         attic push private $(nix-store --query --requisites --include-outputs $(nix path-info --derivation .#default))

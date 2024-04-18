@@ -51,17 +51,15 @@ pub fn batch_sync(
     let modified_flake_nix_content =
         strategies
             .iter()
-            .fold(Ok(destination_flake_nix), |content, strategy| {
-                content.and_then(|content_str| match strategy {
-                    SyncStrategy::LockOnly {
-                        lock_url: _,
-                        input_names: _,
-                    } => Ok(content_str),
-                    SyncStrategy::FlakeNixAndLock {
-                        lock_url: _,
-                        input_names,
-                    } => flake_nix::sync(&source_flake_nix, &content_str, input_names),
-                })
+            .try_fold(destination_flake_nix, |content, strategy| match strategy {
+                SyncStrategy::LockOnly {
+                    lock_url: _,
+                    input_names: _,
+                } => Ok(content),
+                SyncStrategy::FlakeNixAndLock {
+                    lock_url: _,
+                    input_names,
+                } => flake_nix::sync(&source_flake_nix, &content, input_names),
             })?;
 
     let dst_dir = if destination.is_dir() {

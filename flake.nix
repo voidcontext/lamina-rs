@@ -1,71 +1,50 @@
 {
-  inputs.nixpkgs.url = "nixpkgs/release-23.05";
+  inputs.nixpkgs.url = "nixpkgs/release-23.11";
   inputs.flake-utils.url = "github:numtide/flake-utils";
 
-  inputs.nix-rust-utils.url = "git+https://git.vdx.hu/voidcontext/nix-rust-utils.git?ref=refs/tags/v0.8.2";
-  inputs.nix-rust-utils.inputs.nixpkgs.follows = "nixpkgs";
+  inputs.crane = {
+    url = "github:ipetkov/crane/v0.15.1";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
 
   outputs = {
+    self,
     nixpkgs,
     flake-utils,
-    nix-rust-utils,
+    crane,
     ...
-  }:
-    let 
-    mkLamina = pkgs: 
-    let 
-      nru = nix-rust-utils.mkLib {inherit pkgs;};
+  }: let
+    mkLamina = import ./nix/lamina.nix;
+    outputs = flake-utils.lib.eachDefaultSystem (
+      system: let
+        pkgs = import nixpkgs {inherit system;};
+        craneLib = crane.lib.${system};
+        callPackage = pkgs.lib.callPackageWith (pkgs // {inherit crane;});
+        lamina = callPackage mkLamina {};
+      in {
+        checks = builtins.removeAttrs lamina.checks ["cargo-nextest"];
 
-      commonArgs = {
-        src = ./.;
-        buildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin [
-          pkgs.libiconv
-        ];
+        packages.default = lamina;
+
+        devShells.default = craneLib.devShell {
+          checks = self.checks.${system};
+          packages = [
+            pkgs.rust-analyzer
+          ];
+        };
+      }
+    );
+  in
+    outputs
+    // {
+      overlays.default = final: prev: {
+        lamina = outputs.packages.${final.system}.default;
       };
-    in
-    rec {
-      crate = nru.mkCrate (commonArgs
-        // {
-          doCheck = false;
 
-          # Shell completions
-          COMPLETIONS_TARGET="target/";
-          nativeBuildInputs = [ pkgs.installShellFiles ];
-          postInstall = ''
-            installShellCompletion --bash target/lamina.bash
-            installShellCompletion --fish target/lamina.fish
-            installShellCompletion --zsh  target/_lamina
-          '';
-        });
-      checks = nru.mkChecks (commonArgs
-        // {
-          inherit crate;
-          nextest = true;
-        });
-    } ;
-    outputs = 
-    flake-utils.lib.eachDefaultSystem (system: let
-      pkgs = import nixpkgs {inherit system;};    
-      nru = nix-rust-utils.mkLib {inherit pkgs;};
-      
-      lamina = mkLamina pkgs;
-    in {
-      checks = builtins.removeAttrs lamina.checks ["cargo-nextest"];
-
-      packages.default = lamina.crate;
-
-      devShells.default = nru.mkDevShell {
-        inputsFrom = [lamina.crate];
-        inherit (lamina) checks;
+      overlays.withHostPkgs = final: prev: let
+        callPackage = final.lib.callPackageWith (final // {inherit crane;});
+      in {
+        lamina = callPackage mkLamina {};
       };
-    });
-  in outputs // {
-    overlays.default = final: prev: {
-      lamina = outputs.packages.${final.system}.default;
     };
-    
-    overlays.withHostPkgs = final: prev: {
-      lamina = (mkLamina final).crate;
-    };
-  };
 }
