@@ -14,24 +14,13 @@ steps:
       script: |
         nix flake check
 
-        nix-env -iA nixpkgs.jq nixpkgs.zstd
-
-        # Reuse cargo artifacts from the build from the checks
-        __deps_drv=$(nix path-info --derivation --recursive .#default | grep lamina-deps)
-        __deps_target=$(nix derivation show $__deps_drv | jq -r ".\"$__deps_drv\".outputs.out.path")
-        cp --dereference --preserve=timestamps --no-preserve=ownership -r $__deps_target/target.tar.zst ./
-        unzstd < target.tar.zst | tar xvf -
-        chmod -R u+w target
-        find target -name '.cargo-lock' -delete
-
-        # Use vendored cargo deps
-        __vendor_drv=$(nix path-info --derivation --recursive .#default | grep vendor-cargo-deps.drv)
-        __vendor_conf=$(nix derivation show $__vendor_drv | jq -r ".\"$__vendor_drv\".outputs.out.path")
-        mkdir ~/.cargo
-        cat $__vendor_conf/config.toml >> ~/.cargo/config.toml
-
+  integration-tests:
+    image: git.vdx.hu/voidcontext/woodpecker-plugin-nix-attic:0.1.1
+    settings:
+      binary_cache: https://cache.nix.vdx.hu/private
+      binary_cache_public_key: private:O0/Z0BQZpKKHQQES65u7xNfZF7eCZoz9RKJi191TGaM=
+      binary_cache_token:
+        from_secret: attic_token
+      script: |
         # Run integration tests
         nix develop .# --command cargo nextest run --release -E 'kind(test)'
-
-        attic login attic $PLUGIN_BINARY_CACHE $PLUGIN_BINARY_CACHE_TOKEN
-        attic push private $(nix-store --query --requisites --include-outputs $(nix path-info --derivation .#default))
