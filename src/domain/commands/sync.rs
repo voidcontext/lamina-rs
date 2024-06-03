@@ -1,34 +1,43 @@
 use std::path::Path;
 
-use crate::nix::{
-    file::{self, flake_lock::FlakeLock},
-    flake_lock, flake_nix, process, SyncInputNames, SyncStrategy,
+use crate::domain::{
+    self,
+    nix::{Flake, SyncService, SyncStrategy},
+    Result,
 };
 
-pub fn batch_sync(
+use super::SyncInputNames;
+
+pub fn sync<F: Flake, S: SyncService>(
     source: &Path,
     destination: &Path,
     inputs: &[SyncInputNames],
-) -> anyhow::Result<()> {
-    let source_flake_lock = FlakeLock::try_from(source)?;
-    let destination_flake_lock = FlakeLock::try_from(destination)?;
+    flake: &F,
+    sync_service: &S,
+) -> Result<()> {
+    let source_flake_lock = flake.load_lock_from(source)?;
+    let destination_flake_lock = flake.load_lock_from(destination)?;
 
     let strategies = inputs
         .iter()
         .map(|input_name| {
             let source_rev = source_flake_lock
-                .locked_rev_of(input_name.source())
+                .nodes
+                .get(input_name.source())
+                .map(|n| n.locked.rev.clone())
                 .ok_or_else(|| {
-                    anyhow::Error::msg(format!(
+                    domain::Error::SyncError(format!(
                         "{} doesn't have a revision at source",
                         input_name.source()
                     ))
                 })?;
 
             let destination_rev = destination_flake_lock
-                .locked_rev_of(input_name.destination())
+                .nodes
+                .get(input_name.destination())
+                .map(|n| n.locked.rev.clone())
                 .ok_or_else(|| {
-                    anyhow::Error::msg(format!(
+                    domain::Error::SyncError(format!(
                         "{} doesn't have a revision at destination",
                         input_name.source()
                     ))
@@ -41,35 +50,28 @@ pub fn batch_sync(
             );
             log::debug!("source rev of {} is: {}", input_name.source(), &*source_rev);
 
-            flake_lock::sync_strategy(&source_flake_lock, &destination_flake_lock, input_name)
+            sync_service.sync_strategy(&source_flake_lock, &destination_flake_lock, input_name)
         })
-        .collect::<anyhow::Result<Vec<SyncStrategy>>>()?;
+        .collect::<Result<Vec<SyncStrategy>>>()?;
 
-    let source_flake_nix = file::flake_nix::read_to_string(source)?;
-    let destination_flake_nix = file::flake_nix::read_to_string(destination)?;
+    let source_flake_nix = flake.load_from(source)?;
+    let destination_flake_nix = flake.load_from(destination)?;
 
     let modified_flake_nix_content =
         strategies
             .iter()
-            .try_fold(destination_flake_nix, |content, strategy| match strategy {
+            .try_fold(destination_flake_nix, |result, strategy| match strategy {
                 SyncStrategy::LockOnly {
                     lock_url: _,
                     input_names: _,
-                } => Ok(content),
+                } => Ok(result),
                 SyncStrategy::FlakeNixAndLock {
                     lock_url: _,
                     input_names,
-                } => flake_nix::sync(&source_flake_nix, &content, input_names),
+                } => sync_service.sync(&source_flake_nix, &result, input_names),
             })?;
 
-    let dst_dir = if destination.is_dir() {
-        destination
-    } else {
-        destination
-            .parent()
-            .expect("Cannot find parent of destination")
-    };
-    file::flake_nix::write(dst_dir, &modified_flake_nix_content)?;
+    flake.write(destination, &modified_flake_nix_content)?;
 
     strategies
         .iter()
@@ -81,9 +83,9 @@ pub fn batch_sync(
             | SyncStrategy::FlakeNixAndLock {
                 lock_url,
                 input_names,
-            } => process::override_input(input_names.destination(), lock_url, dst_dir),
+            } => flake.override_input(destination, input_names.destination(), lock_url),
         })
-        .collect::<anyhow::Result<Vec<_>>>()?;
+        .collect::<Result<Vec<_>>>()?;
 
     Ok(())
 }

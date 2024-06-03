@@ -8,10 +8,18 @@ use std::{
 use assert_cmd::Command;
 
 use cmd_lib_macros::run_cmd;
-use lamina::nix::file::flake_lock::FlakeLock;
+use lamina::nix::flake_lock::FlakeLock;
 use sealed_test::prelude::*;
 
 use pretty_assertions::assert_eq;
+
+fn load_flake_lock(p: &Path) -> FlakeLock {
+    let mut path = p.to_path_buf();
+    path.push("flake.lock");
+    let flake_lock_json = fs::read_to_string(path).expect("Could read flake.lock");
+
+    serde_json::from_str::<FlakeLock>(&flake_lock_json).expect("Couldn't parse flake.lock")
+}
 
 fn run_test(
     src_dir: &str,
@@ -50,18 +58,28 @@ fn run_test(
     let synced = fs::read_to_string(format!("{dst_dir}/flake.nix")).unwrap();
     assert_eq!(synced, expected_flake_nix);
 
-    let source_flake_lock =
-        FlakeLock::try_from(Path::new(src_dir)).expect("Couldn't parse source flake");
-    let destination_flake_lock =
-        FlakeLock::try_from(Path::new(dst_dir)).expect("Couldn't parse destination flake");
+    let source_flake_lock = load_flake_lock(Path::new(src_dir));
+    let destination_flake_lock = load_flake_lock(Path::new(dst_dir));
 
     assert_eq!(
-        source_flake_lock.original_of(src_input_name),
-        destination_flake_lock.original_of(dst_input_name)
+        source_flake_lock
+            .nodes
+            .get(src_input_name)
+            .map(|n| n.original.clone()),
+        destination_flake_lock
+            .nodes
+            .get(dst_input_name)
+            .map(|n| n.original.clone())
     );
     assert_eq!(
-        source_flake_lock.locked_of(src_input_name),
-        destination_flake_lock.locked_of(dst_input_name)
+        source_flake_lock
+            .nodes
+            .get(src_input_name)
+            .map(|n| n.locked.clone()),
+        destination_flake_lock
+            .nodes
+            .get(dst_input_name)
+            .map(|n| n.locked.clone())
     );
 }
 
@@ -161,10 +179,8 @@ fn test_batch_sync() {
 "#
     );
 
-    let source_flake_lock = FlakeLock::try_from(Path::new(&format!("{working_dir}/nested")))
-        .expect("Couldn't parse source flake");
-    let destination_flake_lock = FlakeLock::try_from(Path::new(&format!("{working_dir}/oneline")))
-        .expect("Couldn't parse destination flake");
+    let source_flake_lock = load_flake_lock(Path::new(&format!("{working_dir}/nested")));
+    let destination_flake_lock = load_flake_lock(Path::new(&format!("{working_dir}/oneline")));
 
     for input_name in &[
         "nixpkgs-indirect-ref",
@@ -172,12 +188,24 @@ fn test_batch_sync() {
         "nixpkgs-github",
     ] {
         assert_eq!(
-            source_flake_lock.original_of(input_name),
-            destination_flake_lock.original_of(input_name)
+            source_flake_lock
+                .nodes
+                .get(*input_name)
+                .map(|n| n.original.clone()),
+            destination_flake_lock
+                .nodes
+                .get(*input_name)
+                .map(|n| n.original.clone())
         );
         assert_eq!(
-            source_flake_lock.locked_of(input_name),
-            destination_flake_lock.locked_of(input_name)
+            source_flake_lock
+                .nodes
+                .get(*input_name)
+                .map(|n| n.locked.clone()),
+            destination_flake_lock
+                .nodes
+                .get(*input_name)
+                .map(|n| n.locked.clone())
         );
     }
 }

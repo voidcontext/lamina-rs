@@ -30,6 +30,7 @@
           checks = self.checks.${system};
           packages = [
             pkgs.rust-analyzer
+            pkgs.cargo-outdated
           ];
         };
       }
