@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod console;
 pub mod fs;
+pub mod git;
 pub mod nix;
 
 use std::io;
@@ -17,6 +18,8 @@ pub enum Error {
     SyncError(String),
     #[error("nix parser error: {:?}", .0)]
     NixParserError(String),
+    #[error("generic parser error: {:?}", .0)]
+    ParserError(String),
     #[error("an error happened: {:?}", .0)]
     Error(String),
 }

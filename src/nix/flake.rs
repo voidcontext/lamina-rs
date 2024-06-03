@@ -131,7 +131,7 @@ impl FlakeLockMapper for FlakeLockMapperImpl {
                             url,
                             last_modified,
                         } => domain::nix::Locked {
-                            rev: domain::nix::LockedRev::from(&**rev),
+                            rev: domain::git::CommitSha::from(&**rev),
                             r#ref: r#ref.as_ref().map(|r| domain::nix::LockedRef::from(&**r)),
                             source: domain::nix::LockedSource::Git { url: url.clone() },
                             last_modified: *last_modified,
@@ -143,7 +143,7 @@ impl FlakeLockMapper for FlakeLockMapperImpl {
                             repo,
                             last_modified,
                         } => domain::nix::Locked {
-                            rev: domain::nix::LockedRev::from(&**rev),
+                            rev: domain::git::CommitSha::from(&**rev),
                             r#ref: r#ref.as_ref().map(|r| domain::nix::LockedRef::from(&**r)),
                             source: domain::nix::LockedSource::GitHub {
                                 owner: owner.clone(),
@@ -158,7 +158,7 @@ impl FlakeLockMapper for FlakeLockMapperImpl {
                             repo,
                             last_modified,
                         } => domain::nix::Locked {
-                            rev: domain::nix::LockedRev::from(&**rev),
+                            rev: domain::git::CommitSha::from(&**rev),
                             r#ref: r#ref.as_ref().map(|r| domain::nix::LockedRef::from(&**r)),
                             source: domain::nix::LockedSource::GitLab {
                                 owner: owner.clone(),
@@ -176,7 +176,7 @@ impl FlakeLockMapper for FlakeLockMapperImpl {
                     )))
                     .map(|original| match original {
                         Original::Git { url, r#ref, rev } => domain::nix::Original {
-                            rev: rev.as_ref().map(|r| domain::nix::OriginalRev::from(&**r)),
+                            rev: rev.as_ref().map(|r| domain::git::CommitSha::from(&**r)),
                             r#ref: r#ref.as_ref().map(|r| domain::nix::OriginalRef::from(&**r)),
                             source: domain::nix::OriginalSource::Git { url: url.clone() },
                         },
@@ -186,7 +186,7 @@ impl FlakeLockMapper for FlakeLockMapperImpl {
                             r#ref,
                             rev,
                         } => domain::nix::Original {
-                            rev: rev.as_ref().map(|r| domain::nix::OriginalRev::from(&**r)),
+                            rev: rev.as_ref().map(|r| domain::git::CommitSha::from(&**r)),
                             r#ref: r#ref.as_ref().map(|r| domain::nix::OriginalRef::from(&**r)),
                             source: domain::nix::OriginalSource::GitHub {
                                 owner: owner.clone(),
@@ -199,7 +199,7 @@ impl FlakeLockMapper for FlakeLockMapperImpl {
                             r#ref,
                             rev,
                         } => domain::nix::Original {
-                            rev: rev.as_ref().map(|r| domain::nix::OriginalRev::from(&**r)),
+                            rev: rev.as_ref().map(|r| domain::git::CommitSha::from(&**r)),
                             r#ref: r#ref.as_ref().map(|r| domain::nix::OriginalRef::from(&**r)),
                             source: domain::nix::OriginalSource::GitLab {
                                 owner: owner.clone(),
@@ -207,7 +207,7 @@ impl FlakeLockMapper for FlakeLockMapperImpl {
                             },
                         },
                         Original::Indirect { id, r#ref, rev } => domain::nix::Original {
-                            rev: rev.as_ref().map(|r| domain::nix::OriginalRev::from(&**r)),
+                            rev: rev.as_ref().map(|r| domain::git::CommitSha::from(&**r)),
                             r#ref: r#ref.as_ref().map(|r| domain::nix::OriginalRef::from(&**r)),
                             source: domain::nix::OriginalSource::Indirect { id: id.clone() },
                         },

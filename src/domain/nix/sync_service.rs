@@ -232,8 +232,9 @@ mod tests {
 
     use crate::domain::{
         commands::SyncInputNames,
+        git::CommitSha,
         nix::{
-            flake_lock::{LockedRev, Node, OriginalRef},
+            flake_lock::{Node, OriginalRef},
             sync_service::{SyncService, SyncServiceImpl},
             FlakeNix, SyncStrategy,
         },
@@ -338,8 +339,8 @@ mod tests {
     };
 
     lazy_static::lazy_static! {
-        static ref HASH_1: LockedRev = LockedRev::from("f542386b0646cf39b9475a200979adabd07d98b2");
-        static ref HASH_2: LockedRev = LockedRev::from("4468e5deabf5e6d0740cd1a77df56f67093ec943");
+        static ref HASH_1: CommitSha = CommitSha::from("f542386b0646cf39b9475a200979adabd07d98b2");
+        static ref HASH_2: CommitSha = CommitSha::from("4468e5deabf5e6d0740cd1a77df56f67093ec943");
         static ref INPUT_NAMES: SyncInputNames = SyncInputNames::same("nix-rust-utils".to_string());
     }
 

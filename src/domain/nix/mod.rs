@@ -6,10 +6,11 @@ mod flake_lock;
 mod flake_nix;
 mod sync_service;
 mod sync_strategy;
+mod update_service;
 
 pub(crate) use flake_lock::{
-    FlakeLock, InputReference, Locked, LockedRef, LockedRev, LockedSource, Node, Original,
-    OriginalRef, OriginalRev, OriginalSource, RootNode,
+    FlakeLock, InputReference, Locked, LockedRef, LockedSource, Node, Original, OriginalRef,
+    OriginalSource, RootNode,
 };
 #[allow(clippy::module_name_repetitions)]
 pub(crate) use flake_nix::FlakeNix;
