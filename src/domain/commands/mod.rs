@@ -1,7 +1,9 @@
 mod last_modified;
+mod outdated;
 mod sync;
 
 pub use last_modified::last_modified;
+pub use outdated::outdated;
 pub use sync::sync;
 
 #[derive(Debug, PartialEq)]

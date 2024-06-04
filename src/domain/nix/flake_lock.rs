@@ -13,7 +13,16 @@ pub struct FlakeLock {
 impl FlakeLock {
     #[must_use]
     pub fn input_nodes(&self) -> HashMap<String, Node> {
-        todo!()
+        self.nodes
+            .clone()
+            .into_iter()
+            .filter(|(name, _)| {
+                self.root.inputs.iter().any(|(_, r)| match r {
+                    InputReference::Alias(alias) => alias == name,
+                    InputReference::Path(_) => todo!(),
+                })
+            })
+            .collect()
     }
 }
 
@@ -21,12 +30,14 @@ pub struct RootNode {
     pub inputs: HashMap<String, InputReference>,
 }
 
+#[derive(Debug, Clone)]
 pub struct Node {
     pub inputs: HashMap<String, InputReference>,
     pub locked: Locked,
     pub original: Original,
 }
 
+#[derive(Debug, Clone)]
 pub enum InputReference {
     Alias(String),
     Path(Vec<String>),
@@ -41,7 +52,7 @@ impl From<&str> for LockedRef {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Locked {
     pub rev: git::CommitSha,
     pub r#ref: Option<LockedRef>,
@@ -49,11 +60,16 @@ pub struct Locked {
     pub last_modified: OffsetDateTime,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum LockedSource {
+    Git { url: String },
     GitHub { owner: String, repo: String },
     GitLab { owner: String, repo: String },
-    Git { url: String },
+    SourceHut { owner: String, repo: String },
+    Mercurial {},
+    File {},
+    Path {},
+    Tarball {},
 }
 
 #[newtype(new, serde, borrow = "str")]
@@ -67,7 +83,7 @@ impl From<&str> for OriginalRef {
 
 impl Default for OriginalRef {
     fn default() -> Self {
-        Self::from("refs/remotes/origin/HEAD")
+        Self::from("HEAD")
     }
 }
 
@@ -92,10 +108,15 @@ pub struct Original {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum OriginalSource {
+    Indirect { id: String },
+    Git { url: String },
     GitHub { owner: String, repo: String },
     GitLab { owner: String, repo: String },
-    Git { url: String },
-    Indirect { id: String },
+    SourceHut { owner: String, repo: String },
+    Mercurial {},
+    File {},
+    Path {},
+    Tarball {},
 }
 
 #[cfg(test)]

@@ -3,6 +3,9 @@
   lib,
   stdenv,
   libiconv,
+  openssl,
+  darwin,
+  pkg-config,
   installShellFiles,
   crane,
   ...
@@ -11,8 +14,9 @@
   craneLib = crane.lib.${system};
   commonArgs = {
     inherit src;
-    buildInputs = lib.optionals stdenv.isDarwin [
+    buildInputs = [openssl pkg-config] ++ lib.optionals stdenv.isDarwin [
       libiconv
+      darwin.apple_sdk.frameworks.Security
     ];
   };
 

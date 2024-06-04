@@ -215,9 +215,7 @@ fn override_url(original: &Original, locked: &Locked) -> Result<String> {
             LockedSource::GitHub { owner, repo } => {
                 Ok(format!("github:{owner}/{repo}/{}", &*locked.rev))
             }
-            LockedSource::GitLab { owner: _, repo: _ } => {
-                Err(Error::Error(String::from("Gitlab is not supported yet")))
-            }
+            _ => Err(Error::Error(String::from("Source is not supported yet"))),
         },
     }
 }

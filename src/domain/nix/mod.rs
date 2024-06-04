@@ -16,6 +16,8 @@ pub(crate) use flake_lock::{
 pub(crate) use flake_nix::FlakeNix;
 pub use sync_service::{SyncService, SyncServiceImpl};
 pub(crate) use sync_strategy::SyncStrategy;
+pub(crate) use update_service::{Update, UpdateStatus};
+pub use update_service::{UpdateService, UpdateServiceImpl};
 
 pub trait Flake {
     fn load_lock(&self) -> Result<FlakeLock>;

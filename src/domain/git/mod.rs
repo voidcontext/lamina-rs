@@ -13,7 +13,6 @@ pub struct Commit {
 }
 
 impl Commit {
-    #[cfg(test)]
     #[must_use]
     pub fn from_raw(sha: &str, commit_date: i64) -> Self {
         Self {
@@ -50,7 +49,7 @@ impl From<&str> for Tag {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ref {
     HEAD,
     Head(BranchName),
@@ -62,6 +61,25 @@ impl Ref {
     #[cfg(test)]
     pub(crate) fn head(name: &str) -> Self {
         Self::Head(BranchName::from(name))
+    }
+    #[cfg(test)]
+    pub(crate) fn remote(name: &str) -> Self {
+        Self::Remote(String::from(name))
+    }
+    #[cfg(test)]
+    pub(crate) fn tag(name: &str) -> Self {
+        Self::Tag(Tag::from(name))
+    }
+}
+
+impl ToString for &Ref {
+    fn to_string(&self) -> String {
+        match self {
+            Ref::HEAD => String::from("HEAD"),
+            Ref::Head(BranchName(str)) => format!("/refs/head/{str}"),
+            Ref::Tag(Tag(str)) => format!("refs/tags/{str}"),
+            Ref::Remote(remote) => format!("refs/remotes/{remote}"),
+        }
     }
 }
 
@@ -84,7 +102,7 @@ impl Ref {
 //     }
 // }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RemoteReference {
     Url(String),
     GitHub { repo: String, owner: String },
@@ -92,6 +110,18 @@ pub enum RemoteReference {
 }
 
 impl RemoteReference {
+    pub(crate) fn to_url(&self) -> String {
+        match self {
+            RemoteReference::Url(url) => url.clone(),
+            RemoteReference::GitHub { repo, owner } => {
+                format!("https://github.com/{owner}/{repo}.git")
+            }
+            RemoteReference::GitLab { repo, owner } => {
+                format!("https://gitlab.com/{owner}/{repo}.git")
+            }
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn url<S: AsRef<str>>(url: S) -> Self {
         Self::Url(String::from(url.as_ref()))

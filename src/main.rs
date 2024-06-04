@@ -1,4 +1,7 @@
-use std::env::current_dir;
+use std::{
+    env::{self, current_dir},
+    path::PathBuf,
+};
 
 use crate::cli::Args;
 use clap::Parser;
@@ -8,8 +11,10 @@ use lamina::{
     domain::{
         self,
         commands::{self, SyncInputNames},
+        nix::UpdateServiceImpl,
     },
     fs::OsFileSystem,
+    git::{GitRepositoryConfig, GitRepositoryLibGit},
     nix::{Flake, FlakeLockMapperImpl},
 };
 use log::LevelFilter::{Debug, Info};
@@ -33,6 +38,24 @@ fn main() -> lamina::domain::Result<()> {
             let flake = Flake::new(fs, lock_mapper);
 
             commands::last_modified(&flake, &console)
+        }
+        Command::Outdated => {
+            let fs = OsFileSystem {};
+            let lock_mapper = FlakeLockMapperImpl {};
+
+            let console = OsConsole {};
+
+            let flake = Flake::new(fs, lock_mapper);
+
+            let mut config_dir = PathBuf::from(env::var("HOME").unwrap());
+            config_dir.push(".cache/lamina/repos");
+
+            let config = GitRepositoryConfig::new(true, config_dir);
+            let git_repo = GitRepositoryLibGit::new(config);
+
+            let update_service = UpdateServiceImpl::new(git_repo);
+
+            commands::outdated(&flake, &console, &update_service)
         }
         Command::Sync {
             src_flake,

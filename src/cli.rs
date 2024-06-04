@@ -33,6 +33,7 @@ pub enum Command {
         /// Name of the inputs that will be synced
         inputs: Vec<String>,
     },
+    Outdated,
     /// Prints the last modified date/time of the flake inputs
     LastModified,
 }
